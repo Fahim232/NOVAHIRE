@@ -3,37 +3,41 @@ require_once __DIR__ . '/includes/bootstrap.php';
 
 session_start();
 
-$is_logged_in = isset($_SESSION['id']);
-$is_company_logged_in = isset($_SESSION['company_id']);
-$is_admin_logged_in = isset($_SESSION['admin_username']);
+$isLoggedIn        = isset($_SESSION['id']);
+$isCompanyLoggedIn = isset($_SESSION['company_id']);
+$isAdminLoggedIn   = isset($_SESSION['admin_username']);
 
-// If logged in, redirect to appropriate dashboard
-if ($is_logged_in && !$is_company_logged_in) {
+// Redirect logged-in users to their respective dashboards
+if ($isLoggedIn && !$isCompanyLoggedIn) {
     header('Location: ' . BASE_URL . '/seeker/seeker_dashboard.php');
     exit;
-} elseif ($is_company_logged_in) {
+} elseif ($isCompanyLoggedIn) {
     header('Location: ' . BASE_URL . '/company/index.php');
     exit;
-} elseif ($is_admin_logged_in) {
+} elseif ($isAdminLoggedIn) {
     header('Location: ' . BASE_URL . '/admin/admin_dashboard.php');
     exit;
 }
 
-// Stats
-$con_db = @mysqli_connect('127.0.0.1', 'root', '', 'projects');
-$total_jobs = 0;
-$total_companies = 0;
-$total_users = 0;
-$total_applications = 0;
-if ($con_db) {
-    $r = mysqli_query($con_db, "SELECT COUNT(*) as cnt FROM company_jobs WHERE status='active'");
-    $total_jobs = mysqli_fetch_assoc($r)['cnt'] ?? 0;
-    $r = mysqli_query($con_db, "SELECT COUNT(*) as cnt FROM companies WHERE status='active'");
-    $total_companies = mysqli_fetch_assoc($r)['cnt'] ?? 0;
-    $r = mysqli_query($con_db, "SELECT COUNT(*) as cnt FROM user_info");
-    $total_users = mysqli_fetch_assoc($r)['cnt'] ?? 0;
-    $r = mysqli_query($con_db, "SELECT COUNT(*) as cnt FROM job_applications");
-    $total_applications = mysqli_fetch_assoc($r)['cnt'] ?? 0;
+// Fetch platform statistics
+$dbConnection        = @mysqli_connect('127.0.0.1', 'root', '', 'projects');
+$totalJobs           = 0;
+$totalCompanies      = 0;
+$totalUsers          = 0;
+$totalApplications   = 0;
+
+if ($dbConnection) {
+    $result = mysqli_query($dbConnection, "SELECT COUNT(*) as cnt FROM company_jobs WHERE status='active'");
+    $totalJobs = mysqli_fetch_assoc($result)['cnt'] ?? 0;
+
+    $result = mysqli_query($dbConnection, "SELECT COUNT(*) as cnt FROM companies WHERE status='active'");
+    $totalCompanies = mysqli_fetch_assoc($result)['cnt'] ?? 0;
+
+    $result = mysqli_query($dbConnection, "SELECT COUNT(*) as cnt FROM user_info");
+    $totalUsers = mysqli_fetch_assoc($result)['cnt'] ?? 0;
+
+    $result = mysqli_query($dbConnection, "SELECT COUNT(*) as cnt FROM job_applications");
+    $totalApplications = mysqli_fetch_assoc($result)['cnt'] ?? 0;
 }
 ?>
 <!DOCTYPE html>
@@ -41,8 +45,8 @@ if ($con_db) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NovaHire — Find Your Dream Job | Top Companies Hiring Now</title>
     <meta name="description" content="NovaHire - AI-powered job portal connecting job seekers with top companies. Find your dream job, build your career, and get hired faster.">
+    <title>NovaHire — Find Your Dream Job | Top Companies Hiring Now</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -74,22 +78,30 @@ if ($con_db) {
         }
         h1, h2, h3, h4, h5, h6 { font-family: 'Sora', 'Inter', sans-serif; }
 
-        /* ═══ NAVBAR ═══ */
+        /* Navigation Bar */
         .lh-nav {
-            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
             padding: 16px 0;
             transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .lh-nav.scrolled {
+            padding: 10px 0;
             background: rgba(255,255,255,0.92);
             backdrop-filter: blur(20px) saturate(180%);
             -webkit-backdrop-filter: blur(20px) saturate(180%);
             box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.04);
-            padding: 10px 0;
         }
         .lh-nav-inner {
-            max-width: 1200px; margin: 0 auto; padding: 0 24px;
-            display: flex; align-items: center; justify-content: space-between;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
         }
         .lh-logo {
             display: flex; align-items: center; gap: 10px;
@@ -163,11 +175,18 @@ if ($con_db) {
 
         .lh-hero-content { position: relative; z-index: 3; }
         .lh-hero-badge {
-            display: inline-flex; align-items: center; gap: 8px;
-            background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
-            backdrop-filter: blur(8px); border-radius: 999px;
-            padding: 8px 20px; margin-bottom: 28px;
-            color: rgba(255,255,255,0.9); font-size: 0.82rem; font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            margin-bottom: 28px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 999px;
+            backdrop-filter: blur(8px);
+            color: rgba(255,255,255,0.9);
+            font-size: 0.82rem;
+            font-weight: 700;
             letter-spacing: 0.02em;
             animation: fadeInUp 0.8s ease both;
         }
@@ -182,9 +201,12 @@ if ($con_db) {
         }
 
         .lh-hero h1 {
+            margin-bottom: 22px;
             font-size: clamp(2.5rem, 5.5vw, 4rem);
-            font-weight: 900; color: #fff; line-height: 1.08;
-            letter-spacing: -2px; margin-bottom: 22px;
+            font-weight: 900;
+            line-height: 1.08;
+            letter-spacing: -2px;
+            color: #fff;
             animation: fadeInUp 0.8s ease 0.15s both;
         }
         .lh-hero h1 .highlight {
@@ -193,8 +215,11 @@ if ($con_db) {
             -webkit-text-fill-color: transparent;
         }
         .lh-hero-desc {
-            font-size: 1.15rem; color: rgba(255,255,255,0.8);
-            max-width: 520px; line-height: 1.7; margin-bottom: 36px;
+            max-width: 520px;
+            margin-bottom: 36px;
+            font-size: 1.15rem;
+            line-height: 1.7;
+            color: rgba(255,255,255,0.8);
             animation: fadeInUp 0.8s ease 0.3s both;
         }
 
@@ -203,12 +228,19 @@ if ($con_db) {
             animation: fadeInUp 0.8s ease 0.45s both;
         }
         .lh-hero-btn-primary {
-            display: inline-flex; align-items: center; gap: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 36px;
             background: linear-gradient(135deg, #fbbf24, #d97706);
-            color: #1e293b; font-weight: 800; font-size: 1rem;
-            padding: 16px 36px; border-radius: 16px; text-decoration: none;
-            border: none; transition: all 0.3s;
+            border: none;
+            border-radius: 16px;
+            color: #1e293b;
+            font-size: 1rem;
+            font-weight: 800;
+            text-decoration: none;
             box-shadow: 0 8px 30px rgba(217,119,6,0.4);
+            transition: all 0.3s;
         }
         .lh-hero-btn-primary:hover {
             transform: translateY(-3px);
@@ -267,8 +299,14 @@ if ($con_db) {
         .lh-fc-text small { color: #64748b; font-size: 0.78rem; }
 
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: none; }
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: none;
+            }
         }
         @keyframes fadeInRight {
             from { opacity: 0; transform: translateX(40px); }
@@ -286,8 +324,12 @@ if ($con_db) {
             margin-bottom: 24px;
         }
         .lh-trusted-logos {
-            display: flex; align-items: center; justify-content: center;
-            gap: 48px; flex-wrap: wrap; opacity: 0.5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 48px;
+            opacity: 0.5;
         }
         .lh-trusted-logos i { font-size: 2.2rem; color: #94a3b8; }
 
@@ -313,10 +355,13 @@ if ($con_db) {
         .lh-section-center .lh-section-desc { margin: 0 auto; }
 
         .lh-feature-card {
-            background: #fff; border: 1px solid #f1f5f9;
-            border-radius: 20px; padding: 36px 28px;
+            position: relative;
+            padding: 36px 28px;
+            background: #fff;
+            border: 1px solid #f1f5f9;
+            border-radius: 20px;
+            overflow: hidden;
             transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative; overflow: hidden;
         }
         .lh-feature-card::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
@@ -330,9 +375,14 @@ if ($con_db) {
         }
         .lh-feature-card:hover::before { opacity: 1; }
         .lh-feature-icon {
-            width: 64px; height: 64px; border-radius: 18px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            margin-bottom: 20px;
+            border-radius: 18px;
+            font-size: 1.5rem;
             transition: transform 0.35s;
         }
         .lh-feature-card:hover .lh-feature-icon { transform: scale(1.08) rotate(-3deg); }
@@ -360,13 +410,19 @@ if ($con_db) {
             text-align: center; position: relative; z-index: 1;
         }
         .lh-step-num {
-            width: 64px; height: 64px; border-radius: 50%;
-            background: linear-gradient(135deg, #3b82f6, #06b6d4);
-            color: #fff; font-size: 1.4rem; font-weight: 900;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
             margin: 0 auto 20px;
-            box-shadow: 0 8px 24px rgba(59,130,246,0.35);
+            background: linear-gradient(135deg, #3b82f6, #06b6d4);
             border: 4px solid #fff;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 1.4rem;
+            font-weight: 900;
+            box-shadow: 0 8px 24px rgba(59,130,246,0.35);
         }
         .lh-step h4 { font-size: 1.05rem; font-weight: 800; margin-bottom: 8px; color: var(--lh-text); }
         .lh-step p { color: var(--lh-text-muted); font-size: 0.88rem; line-height: 1.6; }
@@ -387,18 +443,23 @@ if ($con_db) {
             font-size: 2rem; color: rgba(255,255,255,0.25); margin-bottom: 14px;
         }
         .lh-stat-item h2 {
-            font-size: 2.8rem; font-weight: 900; color: #fff;
-            margin-bottom: 4px; letter-spacing: -1px;
+            margin-bottom: 4px;
+            font-size: 2.8rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            color: #fff;
         }
         .lh-stat-item p { color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 600; }
 
         /* ═══ TESTIMONIALS ═══ */
         .lh-testimonials { padding: 100px 0; }
         .lh-testimonial-card {
-            background: #fff; border: 1px solid #f1f5f9;
-            border-radius: 20px; padding: 32px;
-            transition: all 0.3s;
             position: relative;
+            padding: 32px;
+            background: #fff;
+            border: 1px solid #f1f5f9;
+            border-radius: 20px;
+            transition: all 0.3s;
         }
         .lh-testimonial-card:hover {
             transform: translateY(-4px);
@@ -426,9 +487,12 @@ if ($con_db) {
             background: var(--lh-bg-alt);
         }
         .lh-cta-card {
+            position: relative;
+            padding: 70px 50px;
             background: var(--lh-gradient-hero);
-            border-radius: 28px; padding: 70px 50px;
-            text-align: center; position: relative; overflow: hidden;
+            border-radius: 28px;
+            text-align: center;
+            overflow: hidden;
         }
         .lh-cta-card::before {
             content: ''; position: absolute; top: -40%; right: -15%;
@@ -452,11 +516,16 @@ if ($con_db) {
 
         /* ═══ FOOTER ═══ */
         .lh-footer {
-            background: #0f172a; color: #94a3b8; padding: 60px 0 0;
+            padding: 60px 0 0;
+            background: #0f172a;
+            color: #94a3b8;
         }
         .lh-footer-brand {
-            font-family: 'Sora', sans-serif; font-weight: 800;
-            font-size: 1.4rem; color: #fff; margin-bottom: 12px;
+            margin-bottom: 12px;
+            font-family: 'Sora', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #fff;
         }
         .lh-footer-brand span { color: #fbbf24; }
         .lh-footer-desc { font-size: 0.88rem; line-height: 1.7; max-width: 300px; }
@@ -467,7 +536,11 @@ if ($con_db) {
         .lh-footer-links { list-style: none; padding: 0; margin: 0; }
         .lh-footer-links li { margin-bottom: 10px; }
         .lh-footer-links a {
-            color: #94a3b8; font-size: 0.88rem; text-decoration: none;
+            display: block;
+            padding: 4px 0;
+            color: #94a3b8;
+            font-size: 0.88rem;
+            text-decoration: none;
             transition: all 0.25s;
         }
         .lh-footer-links a:hover { color: #fbbf24; padding-left: 4px; }
@@ -521,10 +594,18 @@ if ($con_db) {
 
         /* ═══ MOBILE MENU ═══ */
         .lh-mobile-menu {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15,23,42,0.95); backdrop-filter: blur(10px);
-            z-index: 2000; padding: 80px 24px 40px;
-            flex-direction: column; gap: 8px;
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 2000;
+            padding: 80px 24px 40px;
+            background: rgba(15,23,42,0.95);
+            backdrop-filter: blur(10px);
+            flex-direction: column;
+            gap: 8px;
         }
         .lh-mobile-menu.active { display: flex; }
         .lh-mobile-menu a {
@@ -553,7 +634,9 @@ if ($con_db) {
 <nav class="lh-nav" id="mainNav">
     <div class="lh-nav-inner">
         <a href="index.php" class="lh-logo">
-            <div class="lh-logo-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="lh-logo-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
             Nova<span>Hire</span>
         </a>
         <ul class="lh-nav-links">
@@ -564,7 +647,8 @@ if ($con_db) {
         </ul>
         <div class="lh-nav-btns">
             <a href="auth/login.php" class="lh-btn-getstarted">
-                <i class="fas fa-rocket mr-1"></i> Get Started
+                <i class="fas fa-rocket mr-1"></i>
+                Get Started
             </a>
         </div>
         <button class="lh-mobile-toggle" onclick="toggleMobileMenu()">
@@ -573,7 +657,7 @@ if ($con_db) {
     </div>
 </nav>
 
-<!-- Mobile Menu -->
+<!-- Mobile Navigation Menu -->
 <div class="lh-mobile-menu" id="mobileMenu">
     <button class="lh-mobile-close" onclick="toggleMobileMenu()"><i class="fas fa-times"></i></button>
     <a href="#features" onclick="toggleMobileMenu()">Features</a>
@@ -605,23 +689,25 @@ if ($con_db) {
                 </p>
                 <div class="lh-hero-actions">
                     <a href="auth/login.php" class="lh-hero-btn-primary">
-                        <i class="fas fa-rocket"></i> Get Started Free
+                        <i class="fas fa-rocket"></i>
+                        Get Started Free
                     </a>
                     <a href="seeker/browse_jobs.php" class="lh-hero-btn-secondary">
-                        <i class="fas fa-search"></i> Browse Jobs
+                        <i class="fas fa-search"></i>
+                        Browse Jobs
                     </a>
                 </div>
                 <div class="lh-hero-stats">
                     <div class="lh-hero-stat">
-                        <h3><?php echo number_format($total_jobs); ?>+</h3>
+                        <h3><?php echo number_format($totalJobs); ?>+</h3>
                         <p>Active Jobs</p>
                     </div>
                     <div class="lh-hero-stat">
-                        <h3><?php echo number_format($total_companies); ?>+</h3>
+                        <h3><?php echo number_format($totalCompanies); ?>+</h3>
                         <p>Companies</p>
                     </div>
                     <div class="lh-hero-stat">
-                        <h3><?php echo number_format($total_users); ?>+</h3>
+                        <h3><?php echo number_format($totalUsers); ?>+</h3>
                         <p>Job Seekers</p>
                     </div>
                 </div>
@@ -662,22 +748,22 @@ if ($con_db) {
     </div>
 </section>
 
-<!-- ═══ TRUSTED BY ═══ -->
+<!-- Trusted By Section -->
 <div class="lh-trusted">
     <div class="container">
         <p>Trusted by professionals from leading companies</p>
         <div class="lh-trusted-logos">
-            <i class="fab fa-google"></i>
-            <i class="fab fa-microsoft"></i>
-            <i class="fab fa-amazon"></i>
-            <i class="fab fa-meta"></i>
-            <i class="fab fa-apple"></i>
-            <i class="fab fa-spotify"></i>
+            <i class="fab fa-google" title="Google"></i>
+            <i class="fab fa-microsoft" title="Microsoft"></i>
+            <i class="fab fa-amazon" title="Amazon"></i>
+            <i class="fab fa-meta" title="Meta"></i>
+            <i class="fab fa-apple" title="Apple"></i>
+            <i class="fab fa-spotify" title="Spotify"></i>
         </div>
     </div>
 </div>
 
-<!-- ═══ FEATURES ═══ -->
+<!-- Features Section -->
 <section class="lh-features" id="features">
     <div class="container">
         <div class="lh-section-center">
@@ -744,7 +830,7 @@ if ($con_db) {
     </div>
 </section>
 
-<!-- ═══ HOW IT WORKS ═══ -->
+<!-- How It Works Section -->
 <section class="lh-how" id="how-it-works">
     <div class="container">
         <div class="lh-section-center">
@@ -777,35 +863,35 @@ if ($con_db) {
     </div>
 </section>
 
-<!-- ═══ STATS ═══ -->
+<!-- Statistics Section -->
 <section class="lh-stats">
     <div class="container">
         <div class="row text-center">
             <div class="col-md-3 col-6 mb-4 reveal">
                 <div class="lh-stat-item">
                     <div class="icon"><i class="fas fa-briefcase"></i></div>
-                    <h2><?php echo number_format($total_jobs); ?>+</h2>
+                    <h2><?php echo number_format($totalJobs); ?>+</h2>
                     <p>Job Opportunities</p>
                 </div>
             </div>
             <div class="col-md-3 col-6 mb-4 reveal">
                 <div class="lh-stat-item">
                     <div class="icon"><i class="fas fa-building"></i></div>
-                    <h2><?php echo number_format($total_companies); ?>+</h2>
+                    <h2><?php echo number_format($totalCompanies); ?>+</h2>
                     <p>Registered Companies</p>
                 </div>
             </div>
             <div class="col-md-3 col-6 mb-4 reveal">
                 <div class="lh-stat-item">
                     <div class="icon"><i class="fas fa-users"></i></div>
-                    <h2><?php echo number_format($total_users); ?>+</h2>
+                    <h2><?php echo number_format($totalUsers); ?>+</h2>
                     <p>Active Job Seekers</p>
                 </div>
             </div>
             <div class="col-md-3 col-6 mb-4 reveal">
                 <div class="lh-stat-item">
                     <div class="icon"><i class="fas fa-file-alt"></i></div>
-                    <h2><?php echo number_format($total_applications); ?>+</h2>
+                    <h2><?php echo number_format($totalApplications); ?>+</h2>
                     <p>Applications Sent</p>
                 </div>
             </div>
@@ -813,7 +899,7 @@ if ($con_db) {
     </div>
 </section>
 
-<!-- ═══ TESTIMONIALS ═══ -->
+<!-- Testimonials Section -->
 <section class="lh-testimonials">
     <div class="container">
         <div class="lh-section-center">
@@ -871,7 +957,7 @@ if ($con_db) {
     </div>
 </section>
 
-<!-- ═══ CTA ═══ -->
+<!-- Call to Action Section -->
 <section class="lh-cta">
     <div class="container">
         <div class="lh-cta-card reveal">
@@ -889,7 +975,7 @@ if ($con_db) {
     </div>
 </section>
 
-<!-- ═══ FOOTER ═══ -->
+<!-- Footer Section -->
 <footer class="lh-footer">
     <div class="container">
         <div class="row">
@@ -941,7 +1027,9 @@ if ($con_db) {
             </div>
         </div>
         <div class="lh-footer-bottom">
-            <p>&copy; <?php echo date('Y'); ?> NovaHire. All rights reserved. Built with <i class="fas fa-heart" style="color: #dc2626;"></i> for your career success.</p>
+            <p>&copy; <?php echo date('Y'); ?> NovaHire. All rights reserved. Built with 
+                <i class="fas fa-heart" style="color: #dc2626;"></i> for your career success.
+            </p>
         </div>
     </div>
 </footer>
