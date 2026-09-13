@@ -1564,69 +1564,96 @@ if ($db) {
 </footer>
 
 <script>
-// Navbar scroll effect
-window.addEventListener('scroll', function() {
-    var nav = document.getElementById('mainNav');
-    if (window.scrollY > 50) {
-        nav.classList.add('scrolled');
-    } else {
-        nav.classList.remove('scrolled');
-    }
-});
+    (function() {
+        'use strict';
 
-// Mobile menu
-function toggleMobileMenu() {
-    document.getElementById('mobileMenu').classList.toggle('active');
-}
+        var navElement = document.getElementById('mainNav');
+        var mobileMenu = document.getElementById('mobileMenu');
 
-// Scroll reveal animations
-function revealOnScroll() {
-    var reveals = document.querySelectorAll('.reveal');
-    reveals.forEach(function(el) {
-        var windowHeight = window.innerHeight;
-        var elementTop = el.getBoundingClientRect().top;
-        var revealPoint = 120;
-        if (elementTop < windowHeight - revealPoint) {
-            el.classList.add('visible');
-        }
-    });
-}
-window.addEventListener('scroll', revealOnScroll);
-window.addEventListener('load', revealOnScroll);
-
-// Counter animation
-function animateCounters() {
-    var counters = document.querySelectorAll('.lh-stat-item h2');
-    counters.forEach(function(counter) {
-        var target = parseInt(counter.textContent.replace(/[^0-9]/g, ''));
-        if (target === 0) return;
-        var duration = 2000;
-        var step = target / (duration / 16);
-        var current = 0;
-        var timer = setInterval(function() {
-            current += step;
-            if (current >= target) {
-                counter.textContent = target.toLocaleString() + '+';
-                clearInterval(timer);
+        // Navbar scroll effect
+        function handleNavScroll() {
+            if (window.scrollY > 50) {
+                navElement.classList.add('scrolled');
             } else {
-                counter.textContent = Math.floor(current).toLocaleString() + '+';
+                navElement.classList.remove('scrolled');
             }
-        }, 16);
-    });
-}
-
-// Trigger counter animation when stats section is in view
-var statsObserver = new IntersectionObserver(function(entries) {
-    entries.forEach(function(entry) {
-        if (entry.isIntersecting) {
-            animateCounters();
-            statsObserver.unobserve(entry.target);
         }
-    });
-}, { threshold: 0.3 });
 
-var statsSection = document.querySelector('.lh-stats');
-if (statsSection) statsObserver.observe(statsSection);
+        window.addEventListener('scroll', handleNavScroll);
+
+        // Mobile menu toggle
+        window.toggleMobileMenu = function() {
+            mobileMenu.classList.toggle('active');
+        };
+
+        // Scroll reveal animations
+        function revealOnScroll() {
+            var elements = document.querySelectorAll('.reveal');
+            var windowHeight = window.innerHeight;
+
+            elements.forEach(function(element) {
+                var elementTop = element.getBoundingClientRect().top;
+                var revealThreshold = 120;
+
+                if (elementTop < windowHeight - revealThreshold) {
+                    element.classList.add('visible');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', revealOnScroll);
+        window.addEventListener('load', revealOnScroll);
+
+        // Counter animation
+        function animateCounter(element, target, duration) {
+            var startTime = null;
+            var startValue = 0;
+
+            function updateCounter(currentTime) {
+                if (!startTime) startTime = currentTime;
+                var elapsed = currentTime - startTime;
+                var progress = Math.min(elapsed / duration, 1);
+                var currentValue = Math.floor(progress * target);
+
+                element.textContent = currentValue.toLocaleString() + '+';
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    element.textContent = target.toLocaleString() + '+';
+                }
+            }
+
+            requestAnimationFrame(updateCounter);
+        }
+
+        function animateAllCounters() {
+            var counters = document.querySelectorAll('.lh-stat-item h2');
+
+            counters.forEach(function(counter) {
+                var targetValue = parseInt(counter.textContent.replace(/[^0-9]/g, ''), 10);
+
+                if (targetValue > 0) {
+                    animateCounter(counter, targetValue, 2000);
+                }
+            });
+        }
+
+        // Trigger counter animation when stats section is in view
+        var statsObserver = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    animateAllCounters();
+                    statsObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.3 });
+
+        var statsSection = document.querySelector('.lh-stats');
+        if (statsSection) {
+            statsObserver.observe(statsSection);
+        }
+    })();
 </script>
 
 </body>
