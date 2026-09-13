@@ -1149,7 +1149,7 @@ if ($db) {
 </head>
 <body>
 
-<!-- ═══ NAVBAR ═══ -->
+<!-- Navigation Bar -->
 <nav class="lh-nav" id="mainNav">
     <div class="lh-nav-inner">
         <a href="index.php" class="lh-logo">
@@ -1178,17 +1178,19 @@ if ($db) {
 
 <!-- Mobile Navigation Menu -->
 <div class="lh-mobile-menu" id="mobileMenu">
-    <button class="lh-mobile-close" onclick="toggleMobileMenu()"><i class="fas fa-times"></i></button>
+    <button class="lh-mobile-close" onclick="toggleMobileMenu()">
+        <i class="fas fa-times"></i>
+    </button>
     <a href="#features" onclick="toggleMobileMenu()">Features</a>
     <a href="#how-it-works" onclick="toggleMobileMenu()">How It Works</a>
     <a href="seeker/browse_jobs.php">Browse Jobs</a>
     <a href="blog/">Blog</a>
-    <a href="auth/login.php" style="background: rgba(251,191,36,0.15); color: #fbbf24; margin-top: 16px;">
+    <a href="auth/login.php" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; margin-top: 16px;">
         <i class="fas fa-rocket mr-2"></i> Get Started
     </a>
 </div>
 
-<!-- ═══ HERO ═══ -->
+<!-- Hero Section -->
 <section class="lh-hero">
     <div class="container">
         <div class="row align-items-center">
@@ -1234,28 +1236,36 @@ if ($db) {
             <div class="col-lg-6 d-none d-lg-block">
                 <div class="lh-hero-visuals">
                     <div class="lh-float-card">
-                        <div class="lh-fc-icon" style="background: #dbeafe; color: #2563eb;"><i class="fas fa-check-circle"></i></div>
+                        <div class="lh-fc-icon" style="background: #dbeafe; color: #2563eb;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
                         <div class="lh-fc-text">
                             <h6>Skill Verified</h6>
                             <small>PHP Assessment Passed</small>
                         </div>
                     </div>
                     <div class="lh-float-card">
-                        <div class="lh-fc-icon" style="background: #dcfce7; color: #16a34a;"><i class="fas fa-paper-plane"></i></div>
+                        <div class="lh-fc-icon" style="background: #dcfce7; color: #16a34a;">
+                            <i class="fas fa-paper-plane"></i>
+                        </div>
                         <div class="lh-fc-text">
                             <h6>Application Sent</h6>
                             <small>Senior Developer at TechCo</small>
                         </div>
                     </div>
                     <div class="lh-float-card">
-                        <div class="lh-fc-icon" style="background: #fef3c7; color: #d97706;"><i class="fas fa-bell"></i></div>
+                        <div class="lh-fc-icon" style="background: #fef3c7; color: #d97706;">
+                            <i class="fas fa-bell"></i>
+                        </div>
                         <div class="lh-fc-text">
                             <h6>Interview Scheduled</h6>
                             <small>Tomorrow at 10:00 AM</small>
                         </div>
                     </div>
                     <div class="lh-float-card">
-                        <div class="lh-fc-icon" style="background: #f3e8ff; color: #0ea5e9;"><i class="fas fa-robot"></i></div>
+                        <div class="lh-fc-icon" style="background: #f3e8ff; color: #0ea5e9;">
+                            <i class="fas fa-robot"></i>
+                        </div>
                         <div class="lh-fc-text">
                             <h6>AI Career Coach</h6>
                             <small>Personalized guidance ready</small>
