@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
+<<<<<<< HEAD
+=======
+global $con;
+>>>>>>> 2202f55 (blog)
 
 $page = max(1, intval($_GET['page'] ?? 1));
 $per_page = 9;
@@ -7,29 +11,59 @@ $offset = ($page - 1) * $per_page;
 $search = trim($_GET['search'] ?? '');
 $cat = trim($_GET['category'] ?? '');
 
+<<<<<<< HEAD
 $where = "WHERE status = 'published'";
+=======
+$where = "WHERE p.status = 'published'";
+>>>>>>> 2202f55 (blog)
 $params = [];
 $types = '';
 
 if ($search) {
+<<<<<<< HEAD
     $where .= " AND (title LIKE ? OR content LIKE ? OR excerpt LIKE ?)";
+=======
+    $where .= " AND (p.title LIKE ? OR p.content LIKE ? OR p.excerpt LIKE ?)";
+>>>>>>> 2202f55 (blog)
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $types .= 'sss';
 }
 if ($cat) {
+<<<<<<< HEAD
     $where .= " AND category = ?";
+=======
+    $where .= " AND p.category = ?";
+>>>>>>> 2202f55 (blog)
     $params[] = $cat;
     $types .= 's';
 }
 
+<<<<<<< HEAD
 $count_stmt = mysqli_prepare($con, "SELECT COUNT(*) as total FROM blog_posts p $where");
 if ($params) mysqli_stmt_bind_param($count_stmt, $types, ...$params);
 mysqli_stmt_execute($count_stmt);
 $total = mysqli_fetch_assoc(mysqli_stmt_get_result($count_stmt))['total'];
 $total_pages = max(1, ceil($total / $per_page));
 mysqli_stmt_close($count_stmt);
+=======
+$total = 0;
+$posts = [];
+$categories = [];
+
+$count_stmt = mysqli_prepare($con, "SELECT COUNT(*) as total FROM blog_posts p $where");
+if ($count_stmt) {
+    if ($params) mysqli_stmt_bind_param($count_stmt, $types, ...$params);
+    mysqli_stmt_execute($count_stmt);
+    $res = mysqli_stmt_get_result($count_stmt);
+    if ($res && $row = mysqli_fetch_assoc($res)) {
+        $total = (int)$row['total'];
+    }
+    mysqli_stmt_close($count_stmt);
+}
+$total_pages = max(1, ceil($total / $per_page));
+>>>>>>> 2202f55 (blog)
 
 $sql = "SELECT p.id, p.title, p.slug, p.excerpt, p.category, p.featured_image, p.created_at, p.views_count,
                COALESCE(ui.username, 'NovaHire Team') AS author_name
@@ -37,6 +71,7 @@ $sql = "SELECT p.id, p.title, p.slug, p.excerpt, p.category, p.featured_image, p
         LEFT JOIN user_info ui ON ui.id = p.author_id
         $where ORDER BY p.created_at DESC LIMIT $per_page OFFSET $offset";
 $stmt = mysqli_prepare($con, $sql);
+<<<<<<< HEAD
 if ($params) mysqli_stmt_bind_param($stmt, $types, ...$params);
 mysqli_stmt_execute($stmt);
 $posts = mysqli_fetch_all(mysqli_stmt_get_result($stmt), MYSQLI_ASSOC);
@@ -44,6 +79,23 @@ mysqli_stmt_close($stmt);
 
 $cat_sql = "SELECT category, COUNT(*) as cnt FROM blog_posts WHERE status='published' GROUP BY category ORDER BY cnt DESC";
 $categories = mysqli_fetch_all(mysqli_query($con, $cat_sql), MYSQLI_ASSOC);
+=======
+if ($stmt) {
+    if ($params) mysqli_stmt_bind_param($stmt, $types, ...$params);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
+    if ($res) {
+        $posts = mysqli_fetch_all($res, MYSQLI_ASSOC) ?: [];
+    }
+    mysqli_stmt_close($stmt);
+}
+
+$cat_sql = "SELECT category, COUNT(*) as cnt FROM blog_posts WHERE status='published' GROUP BY category ORDER BY cnt DESC";
+$cat_res = @mysqli_query($con, $cat_sql);
+if ($cat_res) {
+    $categories = mysqli_fetch_all($cat_res, MYSQLI_ASSOC) ?: [];
+}
+>>>>>>> 2202f55 (blog)
 
 // Featured post (first post on page 1 without search/filter)
 $featured = null;
