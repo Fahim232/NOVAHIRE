@@ -3,41 +3,43 @@ require_once __DIR__ . '/includes/bootstrap.php';
 
 session_start();
 
-$isLoggedIn        = isset($_SESSION['id']);
-$isCompanyLoggedIn = isset($_SESSION['company_id']);
-$isAdminLoggedIn   = isset($_SESSION['admin_username']);
+$sessionUser    = isset($_SESSION['id']);
+$sessionCompany = isset($_SESSION['company_id']);
+$sessionAdmin   = isset($_SESSION['admin_username']);
 
-// Redirect logged-in users to their respective dashboards
-if ($isLoggedIn && !$isCompanyLoggedIn) {
+if ($sessionUser && !$sessionCompany) {
     header('Location: ' . BASE_URL . '/seeker/seeker_dashboard.php');
     exit;
-} elseif ($isCompanyLoggedIn) {
+}
+
+if ($sessionCompany) {
     header('Location: ' . BASE_URL . '/company/index.php');
     exit;
-} elseif ($isAdminLoggedIn) {
+}
+
+if ($sessionAdmin) {
     header('Location: ' . BASE_URL . '/admin/admin_dashboard.php');
     exit;
 }
 
-// Fetch platform statistics
-$dbConnection        = @mysqli_connect('127.0.0.1', 'root', '', 'projects');
-$totalJobs           = 0;
-$totalCompanies      = 0;
-$totalUsers          = 0;
-$totalApplications   = 0;
+$db        = @mysqli_connect('127.0.0.1', 'root', '', 'projects');
+$totalJobs = 0;
+$totalCompanies = 0;
+$totalUsers = 0;
+$totalApplications = 0;
 
-if ($dbConnection) {
-    $result = mysqli_query($dbConnection, "SELECT COUNT(*) as cnt FROM company_jobs WHERE status='active'");
-    $totalJobs = mysqli_fetch_assoc($result)['cnt'] ?? 0;
+if ($db) {
+    $queryJobs = "SELECT COUNT(*) as total FROM company_jobs WHERE status='active'";
+    $totalJobs = mysqli_fetch_assoc(mysqli_query($db, $queryJobs))['total'] ?? 0;
 
-    $result = mysqli_query($dbConnection, "SELECT COUNT(*) as cnt FROM companies WHERE status='active'");
-    $totalCompanies = mysqli_fetch_assoc($result)['cnt'] ?? 0;
+    $queryCompanies = "SELECT COUNT(*) as total FROM companies WHERE status='active'";
+    $totalCompanies = mysqli_fetch_assoc(mysqli_query($db, $queryCompanies))['total'] ?? 0;
 
-    $result = mysqli_query($dbConnection, "SELECT COUNT(*) as cnt FROM user_info");
-    $totalUsers = mysqli_fetch_assoc($result)['cnt'] ?? 0;
+    $queryUsers = "SELECT COUNT(*) as total FROM user_info";
+    $totalUsers = mysqli_fetch_assoc(mysqli_query($db, $queryUsers))['total'] ?? 0;
 
-    $result = mysqli_query($dbConnection, "SELECT COUNT(*) as cnt FROM job_applications");
-    $totalApplications = mysqli_fetch_assoc($result)['cnt'] ?? 0;
+    $queryApps = "SELECT COUNT(*) as total FROM job_applications";
+    $totalApplications = mysqli_fetch_assoc(mysqli_query($db, $queryApps))['total'] ?? 0;
 }
 ?>
 <!DOCTYPE html>
