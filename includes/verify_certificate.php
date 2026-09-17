@@ -5,7 +5,7 @@
  * Anyone (e.g. an employer) can paste a certificate code and confirm it is
  * genuine. No login required. Only PAID/valid certificates resolve.
  */
-require_once dirname(__DIR__) . '/includes/bootstrap.php';
+require_once __DIR__ . '/includes/bootstrap.php';
 
 $code = strtoupper(trim($_GET['code'] ?? $_POST['code'] ?? ''));
 $cert = ($code !== '') ? nh_get_certificate_by_code($con, $code) : null;
