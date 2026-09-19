@@ -45,6 +45,7 @@ require_once __DIR__ . '/../includes/bootstrap.php';
 
     // AI match score for logged-in users
     require_once __DIR__ . '/../ai/matching.php';
+    require_once __DIR__ . '/../ai/helpers.php';
     $ai_match = null;
     if ($is_logged_in) {
         $profile_stmt = mysqli_prepare($con, "SELECT * FROM user_info WHERE id = ?");
@@ -57,6 +58,7 @@ require_once __DIR__ . '/../includes/bootstrap.php';
         mysqli_stmt_close($profile_stmt);
     }
 
+    $exhausted = false;
     if ($is_logged_in) {
         // Application status
         $check_stmt = mysqli_prepare($con, "SELECT * FROM job_applications WHERE user_id = ? AND job_id = ?");
@@ -82,7 +84,6 @@ require_once __DIR__ . '/../includes/bootstrap.php';
         mysqli_stmt_close($quiz_stmt);
 
         // Check if user has exhausted all attempts (2+ attempts, all failed)
-        $exhausted = false;
         if ($quiz_status === 'failed') {
             $attempts_stmt = mysqli_prepare($con, "SELECT COUNT(*) as cnt FROM job_quiz_attempts WHERE user_id = ? AND job_id = ?");
             mysqli_stmt_bind_param($attempts_stmt, "ii", $user_id, $job_id);
@@ -287,7 +288,7 @@ require_once __DIR__ . '/../includes/bootstrap.php';
         }
         
         .content-section {
-            background: white;
+            background: #8180a9;
             border-radius: 20px;
             padding: 40px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
@@ -652,6 +653,18 @@ require_once __DIR__ . '/../includes/bootstrap.php';
                     <i class="fas fa-file-lines mr-1"></i>Improve Score
                 </a>
             </div>
+            
+            <?php if (!empty($ai_match['explanation_points'])): ?>
+                <div class="mt-3">
+                    <div style="font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">Analysis</div>
+                    <ul style="font-size:0.85rem; color:#475569; padding-left:20px;">
+                        <?php foreach ($ai_match['explanation_points'] as $pt): ?>
+                            <li><?php echo htmlspecialchars($pt); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($ai_match['matched_skills'])): ?>
                 <div class="mt-3">
                     <div style="font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">Skills You Match</div>
@@ -662,13 +675,20 @@ require_once __DIR__ . '/../includes/bootstrap.php';
                     </div>
                 </div>
             <?php endif; ?>
-            <?php if (!empty($ai_match['missing_skills'])): ?>
+            <?php if (!empty($ai_match['missing_required']) || !empty($ai_match['missing_preferred'])): ?>
                 <div class="mt-2">
                     <div style="font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">Skills To Add</div>
                     <div class="job-tags">
-                        <?php foreach (array_slice($ai_match['missing_skills'], 0, 6) as $ms): ?>
-                            <span class="badge badge-warning" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a;"><?php echo htmlspecialchars($ms); ?></span>
-                        <?php endforeach; ?>
+                        <?php if (!empty($ai_match['missing_required'])): ?>
+                            <?php foreach (array_slice($ai_match['missing_required'], 0, 6) as $ms): ?>
+                                <span class="badge badge-danger" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;" title="Required Skill"><?php echo htmlspecialchars($ms); ?> <i class="fas fa-star" style="font-size: 0.6rem;"></i></span>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php if (!empty($ai_match['missing_preferred'])): ?>
+                            <?php foreach (array_slice($ai_match['missing_preferred'], 0, 6) as $ms): ?>
+                                <span class="badge badge-warning" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a;" title="Preferred Skill"><?php echo htmlspecialchars($ms); ?></span>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>
