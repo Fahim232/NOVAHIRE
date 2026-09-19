@@ -17,6 +17,8 @@ A full-featured recruitment ecosystem connecting job seekers, companies, and men
 - [Project Structure](#project-structure)
 - [Database Schema](#database-schema)
 - [AI System](#ai-system)
+  - [Secure Proctored Assessment Engine](#secure-proctored-assessment-engine)
+  - [AI CV Builder & Generator](#ai-cv-builder--generator)
 - [Payment & Monetization](#payment--monetization)
 - [URL Routes](#url-routes)
 - [Configuration](#configuration)
@@ -30,11 +32,11 @@ NovaHire is a complete job portal built with vanilla PHP and MySQL. It provides 
 
 | Metric | Count |
 |--------|-------|
-| PHP Pages | 137 |
-| Database Tables | 38+ |
-| AI Tools | 8 |
+| PHP Pages | 154 |
+| Database Tables | 45 |
+| AI Tools | 10 |
 | User Roles | 4 |
-| API Endpoints | 16 |
+| API Endpoints | 21 |
 
 ---
 
@@ -42,20 +44,23 @@ NovaHire is a complete job portal built with vanilla PHP and MySQL. It provides 
 
 ### Job Seeker
 - Browse & search jobs with AI match scoring
-- Apply with cover letter + take job-specific quizzes
+- Apply with cover letter + take job-specific assessments
+- **Proctored Job Assessments**: Server-controlled, one-question-at-a-time assessment engine with dual sticky floating timers (Total Time & Question Time), auto-advance on timeout, and anti-cheat protection
 - Track applications through pipeline stages (Pending → Reviewed → Shortlisted → Rejected)
 - Save/bookmark jobs
-- Resume Builder with 4 templates
+- Resume Builder with 4 templates + **AI CV Builder & Generator**
 - Live chat with companies
 - Skill certificates (verifiable)
 - Mentor directory — browse, book, and review sessions
 - Job alerts & notifications
+- Career Blog with interview advice and industry resources
 - Pro subscription (unlimited AI + applications)
 
 ### Company
 - Register & manage company profile with logo
-- Post jobs with custom quiz questions per job
-- View applicants filtered by quiz score, status, pipeline stage
+- Post jobs with custom assessment questions (MCQ & Short Answer with custom time limits and marks)
+- View applicants filtered by quiz score, status, pipeline stage, and proctoring risk score
+- Review detailed applicant submissions, AI short-answer grading feedback, and anti-cheat event logs
 - Schedule interviews (Online / Phone / In-Person)
 - AI-powered job description generator
 - Talent pool discovery
@@ -87,6 +92,8 @@ NovaHire is a complete job portal built with vanilla PHP and MySQL. It provides 
 | Career Path Explorer | Suggests career progressions from current skills |
 | Skill Gap Analyzer | Identifies missing skills for target roles |
 | AI Chatbot | Floating widget with 22+ intents & sentiment detection |
+| AI CV Builder / Generator | Creates structured, professional CVs with tailored summaries and skills taxonomy |
+| Assessment Grader | AI evaluation of short-answer quiz responses with scoring (0-100) & contextual feedback |
 
 > **No API key required** — all AI features have rule-based fallbacks. Optional: OpenAI or Google Gemini for enhanced responses.
 
@@ -152,9 +159,10 @@ mysql -u root projects < database/database.sql
 mysql -u root projects < database/ai_db.sql
 mysql -u root projects < database/features_v3.sql
 mysql -u root projects < database/job_categories_v2.sql
+mysql -u root projects < database/features_v4_assessment.sql
 ```
 
-Or via **phpMyAdmin** → Import tab → select each file one by one.
+Or via **phpMyAdmin** → Import tab → select each file one by one. Alternatively, run `php database/run_migration_v4.php` from terminal to apply the v4 assessment engine schema automatically.
 
 | Order | File | Purpose |
 |-------|------|---------|
@@ -162,6 +170,7 @@ Or via **phpMyAdmin** → Import tab → select each file one by one.
 | 2 | `database/ai_db.sql` | AI tables (chat history, cover letters, analyses) |
 | 3 | `database/features_v3.sql` | Monetization (payments, mentors, certificates) |
 | 4 | `database/job_categories_v2.sql` | Extra job categories + quiz data |
+| 5 | `database/features_v4_assessment.sql` | Assessment sessions, anti-cheating logs, AI grading & question extensions |
 
 ### Step 5: Configure Database Connection
 
@@ -220,7 +229,11 @@ Job-portal-and-grooming/
 │   ├── google_callback.php      #   Google OAuth callback
 │   └── logout.php               #   Session destroy
 │
-├── seeker/                      # Job Seeker Portal (35 pages)
+├── blog/                        # Career Blog & News (2 pages)
+│   ├── index.php                #   Blog directory & search
+│   └── post.php                 #   Single article reader
+│
+├── seeker/                      # Job Seeker Portal (37 pages)
 │   ├── seeker_dashboard.php     #   Dashboard with stats & recommendations
 │   ├── browse_jobs.php          #   Search & filter jobs
 │   ├── job_details.php          #   Job detail view
@@ -232,9 +245,10 @@ Job-portal-and-grooming/
 │   ├── ai_assistant.php         #   AI Chatbot
 │   ├── ai_resume_analyzer.php   #   Resume scoring
 │   ├── ai_cover_letter_generator.php # Cover letter tool
+│   ├── ai_cv_builder.php        #   Interactive AI CV builder wizard
+│   ├── ai_cv_generator.php      #   AI CV generation & editor
 │   ├── ai_mock_interview.php    #   Mock interview practice
 │   ├── ai_grooming_coach.php    #   Study plans & quizzes
-│   ├── browse_jobs.php          #   Job browser
 │   ├── available_companies.php  #   Company directory
 │   ├── live_chat.php            #   Real-time chat with companies
 │   ├── message_center.php       #   Direct messaging
@@ -255,7 +269,7 @@ Job-portal-and-grooming/
 │   ├── job_alerts.php           #   Job alert preferences
 │   ├── company_reviews.php      #   Company reviews
 │   ├── company_job_application.php # Direct company application
-│   ├── company_job_quiz.php     #   Company-specific quiz
+│   ├── company_job_quiz.php     #   Proctored assessment engine (anti-cheat + dual timers)
 │   └── video_interview.php      #   Video interview
 │
 ├── company/                     # Company Portal (18 pages)
@@ -264,7 +278,7 @@ Job-portal-and-grooming/
 │   ├── my_jobs.php              #   Manage job listings
 │   ├── manage_quiz.php          #   Create quiz questions per job
 │   ├── view_applicants.php      #   View & filter applicants
-│   ├── view_applicant_detail.php #  Applicant profile + quiz results
+│   ├── view_applicant_detail.php #  Applicant profile + quiz & anti-cheat logs
 │   ├── category_applicants.php  #   Applicants by category
 │   ├── update_application_status.php # Update application stage
 │   ├── schedule_interview.php   #   Schedule interview
@@ -312,7 +326,7 @@ Job-portal-and-grooming/
 │   ├── index.php                #   Redirect to dashboard
 │   └── logout.php               #   Session destroy
 │
-├── ai/                          # AI Engine
+├── ai/                          # AI Engine (13 modules)
 │   ├── config.php               #   Settings loader (DB + fallbacks)
 │   ├── engine.php               #   Core LLM abstraction (OpenAI/Gemini/offline)
 │   ├── matching.php             #   Job-candidate matching
@@ -321,14 +335,22 @@ Job-portal-and-grooming/
 │   ├── interview.php            #   Mock interview
 │   ├── grooming.php             #   Grooming coach
 │   ├── chatbot.php              #   Chatbot engine
+│   ├── cv_generator.php         #   AI CV generation engine
+│   ├── assessment_grader.php    #   AI short-answer assessment grading
+│   ├── skills_taxonomy.php      #   Structured skills dictionary
 │   ├── helpers.php              #   UI helpers (chat widget, nav, badges)
 │   └── assets/                  #   AI-specific CSS/JS
 │       ├── css/ai.css
 │       └── js/chat.js
 │
-├── api/                         # AJAX JSON Endpoints (16 files)
+├── api/                         # AJAX JSON Endpoints (21 files)
 │   ├── ai_chat.php              #   Chatbot API
 │   ├── ai_generate_jd.php       #   Job description generator
+│   ├── ai_cv_api.php            #   AI CV section generator API
+│   ├── ai_generate_cv.php       #   Full AI CV generation API
+│   ├── ai_generate_cv_ref.php   #   AI CV refinement API
+│   ├── assessment_submit.php    #   Assessment answer submission & scoring
+│   ├── assessment_track.php     #   Anti-cheat telemetry & risk tracking
 │   ├── chat_send.php            #   Send chat message
 │   ├── chat_poll.php            #   Poll for new messages
 │   ├── chat_conversations.php   #   List conversations
@@ -345,7 +367,7 @@ Job-portal-and-grooming/
 │   └── live_chat_alerts.php     #   Live chat polling
 │
 ├── includes/                    # Shared Libraries (18 files)
-│   ├── bootstrap.php            #   Core init (session, DB, BASE_URL, guards)
+│   ├── bootstrap.php            #   Core init (session, DB, BASE_URL, guards, timezone)
 │   ├── security.php             #   CSRF, rate limiting, security headers
 │   ├── functions.php            #   Helper functions (notifications, etc.)
 │   ├── links.php                #   CSS/JS asset includes
@@ -361,14 +383,16 @@ Job-portal-and-grooming/
 │   ├── search.php               #   Advanced job search
 │   ├── google_auth.php          #   Google OAuth integration
 │   ├── job_alerts.php           #   Job alert system
-│   ├── reviews.php              #   Company reviews
+│   ├── theory_questions_helper.php # Theory questions pool helper
 │   └── verify_certificate.php   #   Public certificate verification
 │
-├── database/                    # SQL Schemas
+├── database/                    # SQL Schemas & Migrations (6 files)
 │   ├── database.sql             #   Core tables (~25 tables)
 │   ├── ai_db.sql                #   AI tables (6 tables)
 │   ├── features_v3.sql          #   Monetization tables (10 tables)
-│   └── job_categories_v2.sql    #   Extra categories + quiz data
+│   ├── job_categories_v2.sql    #   Extra categories + quiz data
+│   ├── features_v4_assessment.sql # Assessment sessions & anti-cheat schema
+│   └── run_migration_v4.php     #   Automated migration script for v4
 │
 ├── assets/                      # Global Frontend Assets
 │   ├── css/style.css            #   Master stylesheet (CSS variables)
@@ -393,7 +417,7 @@ Job-portal-and-grooming/
 
 ## Database Schema
 
-The database contains **38+ tables** across 4 SQL files. Key table groups:
+The database contains **45 tables** across 5 SQL files / migrations. Key table groups:
 
 ### Core Tables (`database.sql`)
 | Table | Purpose |
@@ -403,7 +427,7 @@ The database contains **38+ tables** across 4 SQL files. Key table groups:
 | `admin_login` | Admin accounts |
 | `company_jobs` | Job postings |
 | `job_applications` | Applications with pipeline stages |
-| `company_job_questions` | Per-job quiz questions |
+| `company_job_questions` | Per-job assessment questions (MCQ & Short Answer with time limits, marks & ideal answers) |
 | `interviews` | Scheduled interviews |
 | `notifications` | System notifications |
 | `messages` | Direct messaging |
@@ -422,6 +446,14 @@ The database contains **38+ tables** across 4 SQL files. Key table groups:
 | `ai_resume_analyses` | Resume analysis results |
 | `ai_mock_interviews` | Mock interview attempts |
 | `ai_recommendations` | Job match scores |
+| `ai_generated_cvs` | Generated CV history & cached sections |
+
+### Assessment & Proctoring Tables (`features_v4_assessment.sql`)
+| Table | Purpose |
+|-------|---------|
+| `assessment_sessions` | Server-controlled assessment lifecycle, composite scores, and anti-cheating risk |
+| `assessment_responses` | Per-question answers, MCQ verification, AI short-answer scores & feedback |
+| `assessment_events` | Anti-cheating violation records (tab switches, fullscreen exits, devtools, blur, copy/paste) |
 
 ### Monetization Tables (`features_v3.sql`)
 | Table | Purpose |
@@ -437,6 +469,14 @@ The database contains **38+ tables** across 4 SQL files. Key table groups:
 | `certificates` | Verifiable skill certificates |
 | `placements` | Confirmed hires |
 
+### Content & Community Tables
+| Table | Purpose |
+|-------|---------|
+| `blog_posts` | Career resources, guides, and industry news |
+| `company_reviews` | Job seeker company reviews & ratings |
+| `job_alerts` | Automated job alert preferences |
+| `newsletter_subscribers` | Email subscribers |
+
 ---
 
 ## AI System
@@ -445,9 +485,28 @@ The database contains **38+ tables** across 4 SQL files. Key table groups:
 
 NovaHire uses a **hybrid AI engine** (`ai/engine.php`):
 
-1. **Offline Mode (Default)** — All AI features work immediately with no configuration. Uses rule-based algorithms, keyword matching, and template generation.
+1. **Offline Mode (Default)** — All AI features work immediately with no configuration. Uses rule-based algorithms, keyword matching, semantic comparison, and template generation.
 
 2. **Online Mode (Optional)** — Connect OpenAI or Google Gemini for enhanced, conversational responses. Configure in Admin → AI Settings.
+
+### Secure Proctored Assessment Engine
+
+The assessment engine (`seeker/company_job_quiz.php`) delivers real-time, proctored evaluations:
+
+- **Dual Floating & Sticky Timers**:
+  - **Left Card**: Displays **Total Assessment Time** (full examination countdown & progress bar).
+  - **Right Card**: Displays **Question Time** (live countdown for the active question with color-coded states: green >50%, yellow 20-50%, red pulsing <=20%).
+- **Auto-Submission on Timeout**: When a question's timer expires, the question automatically submits (recording chosen answer or blank), advances to the next question, and resets the countdown.
+- **Page Refresh Resiliency**: Both total time and per-question time are computed using exact MySQL `UNIX_TIMESTAMP()` values synced with PHP `time()` in `Asia/Dhaka`. Refreshing the page (F5) maintains the exact remaining time without resetting or jumping.
+- **Anti-Cheating Telemetry**: Tracks tab switching (`TAB_SWITCH`), fullscreen exits (`FULLSCREEN_EXIT`), window blur (`BLUR`), copy (`COPY`), paste (`PASTE`), right click (`RIGHT_CLICK`), devtools access (`DEVTOOLS`), and window resize (`RESIZE`). Automatically terminates the session if cumulative risk reaches `critical`.
+- **Hybrid Grading**: Instant evaluation for Multiple Choice Questions (MCQs) and AI-assisted grading (`ai/assessment_grader.php`) for Short Answer questions comparing candidate answers against ideal benchmarks with scores (0-100) and actionable feedback.
+
+### AI CV Builder & Generator
+
+The CV Builder (`seeker/ai_cv_builder.php` & `seeker/ai_cv_generator.php`):
+- Automatically synthesizes user experience, education, and target job roles into high-impact resumes.
+- Uses standard skills taxonomy (`ai/skills_taxonomy.php`) to highlight relevant technical and soft skills.
+- Allows live section editing, AI bullet-point refinement, and instant downloads.
 
 ### Enable LLM (Optional)
 
@@ -459,7 +518,7 @@ NovaHire uses a **hybrid AI engine** (`ai/engine.php`):
 6. Toggle **LLM Enabled** on
 7. Save
 
-> Without an API key, all 8 AI tools continue to work using offline fallbacks.
+> Without an API key, all 10 AI tools continue to work using offline fallbacks.
 
 ---
 
@@ -473,6 +532,7 @@ NovaHire uses a **hybrid AI engine** (`ai/engine.php`):
 | AI Mock Interview | Locked | Unlimited |
 | AI Cover Letter | Locked | Unlimited |
 | AI Chatbot | Locked | Unlimited |
+| AI CV Builder & Generator | Locked | Unlimited |
 | Skill Gap Analyzer | Locked | Unlimited |
 | Career Path Explorer | Locked | Unlimited |
 | Resume Builder | Locked | Unlimited |
@@ -506,6 +566,7 @@ Payment Gateway: **SSLCOMMERZ** (bKash, cards, net banking)
 |------|-----|
 | Landing Page | `/index.php` |
 | Browse Jobs (public) | `/seeker/browse_jobs.php` |
+| Career Blog | `/blog/index.php` |
 | Company Registration | `/auth/company_registration.php` |
 | Certificate Verification | `/includes/verify_certificate.php?code=XXX` |
 
@@ -517,6 +578,9 @@ Payment Gateway: **SSLCOMMERZ** (bKash, cards, net banking)
 | Dashboard | `/seeker/seeker_dashboard.php` |
 | Browse Jobs | `/seeker/browse_jobs.php` |
 | AI Career Center | `/seeker/ai_hub.php` |
+| AI CV Builder | `/seeker/ai_cv_builder.php` |
+| AI CV Generator | `/seeker/ai_cv_generator.php` |
+| Proctored Assessment | `/seeker/company_job_quiz.php?job_id=XXX` |
 | Profile | `/seeker/profile.php` |
 | My Applications | `/seeker/my_application.php` |
 | Pro Subscription | `/seeker/pro.php` |
@@ -527,7 +591,9 @@ Payment Gateway: **SSLCOMMERZ** (bKash, cards, net banking)
 | Dashboard | `/company/index.php` |
 | Post Job | `/company/post_job.php` |
 | My Jobs | `/company/my_jobs.php` |
+| Manage Quiz / Assessment | `/company/manage_quiz.php` |
 | View Applicants | `/company/view_applicants.php` |
+| Applicant Detail & Assessment Report | `/company/view_applicant_detail.php?id=XXX` |
 | Subscription | `/company/subscription.php` |
 
 ### Mentor
@@ -547,6 +613,16 @@ Payment Gateway: **SSLCOMMERZ** (bKash, cards, net banking)
 | AI Settings | `/admin/ai_settings.php` |
 | Email Settings | `/admin/email_settings.php` |
 | Revenue | `/admin/revenue.php` |
+
+### Core AJAX / API Endpoints
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/assessment_submit.php` | POST | Assessment answer submission, timing check & progression |
+| `/api/assessment_track.php` | POST | Anti-cheating proctoring event telemetry & termination |
+| `/api/ai_generate_cv.php` | POST | Full AI CV synthesis & rendering |
+| `/api/ai_cv_api.php` | POST | Individual CV section generation |
+| `/api/ai_chat.php` | POST | Career chatbot conversation |
+| `/api/ai_generate_jd.php` | POST | Job description generation |
 
 ---
 
@@ -604,7 +680,7 @@ All prices are in **BDT (Bangladeshi Taka)** — ৳ symbol.
 - Ensure database `projects` exists
 
 ### "Table doesn't exist"
-- Import SQL files in order: `database.sql` → `ai_db.sql` → `features_v3.sql` → `job_categories_v2.sql`
+- Import SQL files in order: `database.sql` → `ai_db.sql` → `features_v3.sql` → `job_categories_v2.sql` → `features_v4_assessment.sql` (or run `php database/run_migration_v4.php`)
 - Check for import errors in phpMyAdmin
 
 ### "Page Not Found" (404)
@@ -635,40 +711,6 @@ All prices are in **BDT (Bangladeshi Taka)** — ৳ symbol.
   ```bash
   composer install
   ```
-
----
-
-## Team Members
-
-| Name | Role | Branch | Responsibility |
-|------|------|--------|----------------|
-| Kazi Fahim | Project Lead / Infrastructure | `infrastructure` | Core infrastructure, authentication, security, database design, shared libraries, assets |
-| Member 2 | Job Seeker Developer | `dev-seeker` | Job seeker portal, browse jobs, applications, AI tools, resume builder |
-| Member 3 | Company Developer | `dev-company` | Company portal, job posting, applicant management, payment integration |
-| Member 4 | Admin & AI Developer | `dev-admin-ai` | Admin panel, mentor portal, AI engine, chatbot |
-
----
-
-## Branches
-
-| Branch | Description |
-|--------|-------------|
-| `main` | Production branch with merged features |
-| `infrastructure` | Core infrastructure, auth, security, database |
-| `dev-seeker` | Job seeker portal development |
-| `dev-company` | Company portal development |
-| `dev-admin-ai` | Admin, mentor, and AI development |
-
----
-
-## Contribution Guidelines
-
-1. Clone the repository
-2. Switch to your assigned branch
-3. Make your changes
-4. Commit with descriptive messages
-5. Push to your branch
-6. Create a pull request to merge into `main`
 
 ---
 
