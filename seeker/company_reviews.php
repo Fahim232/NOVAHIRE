@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
+global $con;
 require_seeker_login();
 
 $user_id = $_SESSION['id'];
@@ -11,22 +12,28 @@ if (!$company_id) {
 }
 
 // Fetch company info
+$company = null;
 $comp_stmt = mysqli_prepare($con, "SELECT id, company_name, industry, logo, avg_rating, is_verified, description FROM companies WHERE id = ?");
-mysqli_stmt_bind_param($comp_stmt, "i", $company_id);
-mysqli_stmt_execute($comp_stmt);
-$company = mysqli_fetch_assoc(mysqli_stmt_get_result($comp_stmt));
-mysqli_stmt_close($comp_stmt);
+if ($comp_stmt) {
+    mysqli_stmt_bind_param($comp_stmt, "i", $company_id);
+    mysqli_stmt_execute($comp_stmt);
+    $company = mysqli_fetch_assoc(mysqli_stmt_get_result($comp_stmt));
+    mysqli_stmt_close($comp_stmt);
+}
 
 if (!$company) { header('Location: ../seeker/browse_jobs.php'); exit; }
 
 // Fetch reviews
+$reviews = [];
 $rev_stmt = mysqli_prepare($con, "SELECT cr.*, ui.username FROM company_reviews cr 
                                    LEFT JOIN user_info ui ON cr.user_id = ui.id 
                                    WHERE cr.company_id = ? ORDER BY cr.created_at DESC");
-mysqli_stmt_bind_param($rev_stmt, "i", $company_id);
-mysqli_stmt_execute($rev_stmt);
-$reviews = mysqli_fetch_all(mysqli_stmt_get_result($rev_stmt), MYSQLI_ASSOC);
-mysqli_stmt_close($rev_stmt);
+if ($rev_stmt) {
+    mysqli_stmt_bind_param($rev_stmt, "i", $company_id);
+    mysqli_stmt_execute($rev_stmt);
+    $reviews = mysqli_fetch_all(mysqli_stmt_get_result($rev_stmt), MYSQLI_ASSOC);
+    mysqli_stmt_close($rev_stmt);
+}
 
 // Calculate averages
 $avg_ratings = [
@@ -52,11 +59,14 @@ if (!empty($reviews)) {
 }
 
 // Check if user already reviewed
+$has_reviewed = false;
 $check_stmt = mysqli_prepare($con, "SELECT id FROM company_reviews WHERE company_id = ? AND user_id = ?");
-mysqli_stmt_bind_param($check_stmt, "ii", $company_id, $user_id);
-mysqli_stmt_execute($check_stmt);
-$has_reviewed = mysqli_num_rows(mysqli_stmt_get_result($check_stmt)) > 0;
-mysqli_stmt_close($check_stmt);
+if ($check_stmt) {
+    mysqli_stmt_bind_param($check_stmt, "ii", $company_id, $user_id);
+    mysqli_stmt_execute($check_stmt);
+    $has_reviewed = mysqli_num_rows(mysqli_stmt_get_result($check_stmt)) > 0;
+    mysqli_stmt_close($check_stmt);
+}
 
 // Handle new review submission
 $success = '';

@@ -89,3 +89,27 @@ CREATE TABLE IF NOT EXISTS `ai_recommendations` (
   KEY `user_id` (`user_id`),
   KEY `job_id` (`job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- AI Generated CVs
+CREATE TABLE IF NOT EXISTS `ai_generated_cvs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `job_id` int(11) DEFAULT NULL,
+  `template_name` varchar(50) NOT NULL DEFAULT 'modern',
+  `full_name` varchar(255) NOT NULL,
+  `headline` varchar(255) DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `summary` text DEFAULT NULL,
+  `skills_json` text DEFAULT NULL,
+  `experience_json` longtext DEFAULT NULL,
+  `education_json` text DEFAULT NULL,
+  `projects_json` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `job_id` (`job_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+

@@ -1,275 +1,266 @@
 <?php
 /**
- * NovaHire — Premium Gating System
- * ---------------------------------------------------------------------------
- * Central library for feature access control, usage tracking, and
- * upgrade UI components. Used by all gated seeker pages.
+ * NovaHire — Feature Gating & Usage Tracking
  */
 
-if (defined('NOVAHIRE_PREMIUM')) return;
-define('NOVAHIRE_PREMIUM', true);
+if (defined('NOVAHIRE_PREMIUM_LOADED')) return;
+define('NOVAHIRE_PREMIUM_LOADED', true);
 
-/* ── Feature Configuration ────────────────────────────────────────────────── */
-
-function nh_feature_config() {
-    return [
-        'ai_resume_analyzer' => [
-            'label'       => 'AI Resume Analyzer',
-            'icon'        => 'fa-file-lines',
-            'description' => 'Get AI-powered analysis of your resume with readiness scores and improvement tips.',
-            'free_limit'  => 0,
-            'type'        => 'hard_gate',
-        ],
-        'ai_mock_interview' => [
-            'label'       => 'AI Mock Interview',
-            'icon'        => 'fa-user-tie',
-            'description' => 'Practice with realistic AI interviewer questions and get instant feedback.',
-            'free_limit'  => 0,
-            'type'        => 'hard_gate',
-        ],
-        'ai_cover_letter' => [
-            'label'       => 'AI Cover Letter Generator',
-            'icon'        => 'fa-envelope-open-text',
-            'description' => 'Generate tailored, professional cover letters for any job in seconds.',
-            'free_limit'  => 0,
-            'type'        => 'hard_gate',
-        ],
-        'ai_grooming_coach' => [
-            'label'       => 'AI Grooming Coach',
-            'icon'        => 'fa-graduation-cap',
-            'description' => 'Personalized study plans and skill development guidance from AI.',
-            'free_limit'  => 0,
-            'type'        => 'hard_gate',
-        ],
-        'ai_assistant' => [
-            'label'       => 'AI Career Assistant',
-            'icon'        => 'fa-robot',
-            'description' => 'Chat with an AI career advisor 24/7 for instant guidance and tips.',
-            'free_limit'  => 0,
-            'type'        => 'hard_gate',
-        ],
-        'skill_gap' => [
-            'label'       => 'Skill Gap Analyzer',
-            'icon'        => 'fa-chart-column',
-            'description' => 'Discover which skills you need to develop for your target career.',
-            'free_limit'  => 0,
-            'type'        => 'hard_gate',
-        ],
-        'career_path' => [
-            'label'       => 'Career Path Explorer',
-            'icon'        => 'fa-route',
-            'description' => 'AI-mapped career progression paths tailored to your profile.',
-            'free_limit'  => 0,
-            'type'        => 'hard_gate',
-        ],
-        'recommendations' => [
-            'label'       => 'AI Job Recommendations',
-            'icon'        => 'fa-wand-magic-sparkles',
-            'description' => 'Smart job matches ranked by AI based on your skills and experience.',
-            'free_limit'  => 0,
-            'type'        => 'hard_gate',
-        ],
-        'resume_builder' => [
-            'label'       => 'Resume Builder',
-            'icon'        => 'fa-pen-ruler',
-            'description' => 'Build a professional resume with templates and AI suggestions.',
-            'free_limit'  => 0,
-            'type'        => 'hard_gate',
-        ],
-        'job_apply' => [
-            'label'       => 'Job Applications',
-            'icon'        => 'fa-paper-plane',
-            'description' => 'Apply to jobs with your profile and resume.',
-            'free_limit'  => 10,
-            'type'        => 'soft_limit',
-        ],
-    ];
+if (!isset($con)) {
+    require_once __DIR__ . '/bootstrap.php';
 }
-
-/* ── Access Check ─────────────────────────────────────────────────────────── */
+if (!function_exists('is_user_pro')) {
+    require_once __DIR__ . '/monetization.php';
+}
 
 /**
- * Check if a user can access a feature.
- * Returns: ['allowed' => bool, 'remaining' => int|false, 'limit' => int|false, 'is_pro' => bool]
+ * Check if a user has access to a specific premium or AI feature
  */
-function nh_check_access($con, $user_id, $feature_key) {
-    $config = nh_feature_config();
-    if (!isset($config[$feature_key])) {
-        return ['allowed' => true, 'remaining' => false, 'limit' => false, 'is_pro' => false];
+function nh_check_access($con, $user_id, $feature) {
+    if (!$user_id) {
+        return ['allowed' => false, 'reason' => 'login_required'];
     }
-
-    $feat   = $config[$feature_key];
-    $is_pro = is_user_pro($con, $user_id);
-
-    if ($is_pro) {
-        return ['allowed' => true, 'remaining' => false, 'limit' => false, 'is_pro' => true];
+    
+    // Pro members have unlimited access
+    if (is_user_pro($con, $user_id)) {
+        return ['allowed' => true, 'is_pro' => true, 'remaining' => 9999];
     }
-
-    if ($feat['free_limit'] === 0) {
-        return ['allowed' => false, 'remaining' => 0, 'limit' => 0, 'is_pro' => false];
+    
+    // Free tier daily limits
+    $daily_limits = [
+        'ai_resume_analyzer'         => 3,
+        'ai_mock_interview'          => 2,
+        'ai_grooming_coach'          => 5,
+        'ai_assistant'               => 10,
+        'ai_cover_letter_generator'  => 3,
+        'resume_builder'             => 3,
+        'skill_gap'                  => 5,
+        'career_path'                => 5,
+        'recommendations'            => 10,
+        'company_job_quiz'           => 10,
+        'company_job_application'    => 20,
+        'grooming'                   => 10,
+    ];
+    
+    $limit = $daily_limits[$feature] ?? 5;
+    
+    // Check usage today from user_activity_log or session
+    $today = date('Y-m-d');
+    if (!isset($_SESSION['feature_usage'])) $_SESSION['feature_usage'] = [];
+    if (!isset($_SESSION['feature_usage'][$today])) $_SESSION['feature_usage'][$today] = [];
+    
+    $used = $_SESSION['feature_usage'][$today][$feature] ?? 0;
+    
+    if ($used >= $limit) {
+        return [
+            'allowed' => false,
+            'reason' => 'limit_reached',
+            'limit' => $limit,
+            'used' => $used,
+            'remaining' => 0
+        ];
     }
-
-    $used = nh_get_usage_count($con, $user_id, $feature_key);
-    $remaining = max(0, $feat['free_limit'] - $used);
-
+    
     return [
-        'allowed'   => $remaining > 0,
-        'remaining' => $remaining,
-        'limit'     => $feat['free_limit'],
-        'is_pro'    => false,
+        'allowed' => true,
+        'is_pro' => false,
+        'limit' => $limit,
+        'used' => $used,
+        'remaining' => max(0, $limit - $used)
     ];
 }
 
-/* ── Usage Tracking ───────────────────────────────────────────────────────── */
-
-function nh_record_usage($con, $user_id, $feature_key) {
+/**
+ * Track usage of a feature
+ */
+function nh_track_usage($con, $user_id, $feature) {
     $today = date('Y-m-d');
-    $stmt = mysqli_prepare($con,
-        "INSERT INTO feature_usage (user_id, feature_key, usage_date, usage_count)
-         VALUES (?, ?, ?, 1)
-         ON DUPLICATE KEY UPDATE usage_count = usage_count + 1");
-    mysqli_stmt_bind_param($stmt, 'iss', $user_id, $feature_key, $today);
-    $ok = mysqli_stmt_execute($stmt);
-    mysqli_stmt_close($stmt);
-    return $ok;
+    if (!isset($_SESSION['feature_usage'])) $_SESSION['feature_usage'] = [];
+    if (!isset($_SESSION['feature_usage'][$today])) $_SESSION['feature_usage'][$today] = [];
+    
+    if (!isset($_SESSION['feature_usage'][$today][$feature])) {
+        $_SESSION['feature_usage'][$today][$feature] = 1;
+    } else {
+        $_SESSION['feature_usage'][$today][$feature]++;
+    }
 }
 
-function nh_get_usage_count($con, $user_id, $feature_key, $months = 1) {
-    $since = date('Y-m-d', strtotime("-{$months} months"));
-    $stmt = mysqli_prepare($con,
-        "SELECT COALESCE(SUM(usage_count), 0) AS cnt
-         FROM feature_usage
-         WHERE user_id = ? AND feature_key = ? AND usage_date >= ?");
-    mysqli_stmt_bind_param($stmt, 'iss', $user_id, $feature_key, $since);
-    mysqli_stmt_execute($stmt);
-    $row = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
-    mysqli_stmt_close($stmt);
-    return (int)($row['cnt'] ?? 0);
-}
-
-/* ── UI: Pro Gate Overlay ─────────────────────────────────────────────────── */
-
-function nh_render_pro_gate($feature_key, $echo = true) {
-    $config = nh_feature_config();
-    $feat = $config[$feature_key] ?? ['label' => 'This feature', 'icon' => 'fa-lock', 'description' => 'Upgrade to access this feature.'];
-
-    $pro_price = nh_pricing()['pro_monthly'] ?? 499;
-
-    $html = '
-    <div class="nh-pro-gate-overlay">
-      <div class="nh-pro-gate-card">
-        <div class="nh-pro-gate-icon"><i class="fas ' . htmlspecialchars($feat['icon']) . '"></i></div>
-        <h2 class="nh-pro-gate-title">' . htmlspecialchars($feat['label']) . '</h2>
-        <p class="nh-pro-gate-sub">This is a <strong>NovaHire Pro</strong> feature</p>
-        <p class="nh-pro-gate-desc">' . htmlspecialchars($feat['description']) . '</p>
-        <div class="nh-pro-gate-benefits">
-          <div class="nh-pro-gate-benefit"><i class="fas fa-check"></i> Unlimited access to all AI tools</div>
-          <div class="nh-pro-gate-benefit"><i class="fas fa-check"></i> Unlimited job applications</div>
-          <div class="nh-pro-gate-benefit"><i class="fas fa-check"></i> Priority ranking for employers</div>
-          <div class="nh-pro-gate-benefit"><i class="fas fa-check"></i> Free verified certificates</div>
-          <div class="nh-pro-gate-benefit"><i class="fas fa-check"></i> Pro badge on your profile</div>
+/**
+ * Render a Pro gate / paywall modal or view
+ */
+function nh_render_pro_gate($feature) {
+    $feature_name = ucwords(str_replace('_', ' ', $feature));
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>NovaHire Pro Feature</title>
+        <?php if (file_exists(__DIR__ . '/links.php')) include __DIR__ . '/links.php'; ?>
+        <style>
+            .gate-wrapper {
+                min-height: 80vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 40px 20px;
+            }
+            .gate-card {
+                background: var(--bg-card, #fff);
+                border: 1px solid var(--border-light, #e2e8f0);
+                border-radius: 24px;
+                padding: 50px 40px;
+                max-width: 540px;
+                width: 100%;
+                text-align: center;
+                box-shadow: 0 20px 50px rgba(0,0,0,0.08);
+            }
+            .gate-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: linear-gradient(135deg, #1a56db, #0ea5e9);
+                color: #fff;
+                padding: 6px 18px;
+                border-radius: 50px;
+                font-size: 0.85rem;
+                font-weight: 700;
+                margin-bottom: 20px;
+            }
+            .gate-title {
+                font-size: 1.8rem;
+                font-weight: 800;
+                color: var(--text, #0f172a);
+                margin-bottom: 12px;
+            }
+            .gate-desc {
+                color: var(--text-muted, #64748b);
+                font-size: 1rem;
+                line-height: 1.6;
+                margin-bottom: 30px;
+            }
+            .gate-btn {
+                display: inline-block;
+                width: 100%;
+                background: linear-gradient(135deg, #1a56db, #0ea5e9);
+                color: #fff;
+                font-weight: 700;
+                padding: 14px 28px;
+                border-radius: 12px;
+                text-decoration: none;
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .gate-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 20px rgba(14, 165, 233, 0.3);
+                color: #fff;
+            }
+            .gate-back {
+                display: inline-block;
+                margin-top: 15px;
+                color: var(--text-muted, #64748b);
+                text-decoration: none;
+                font-size: 0.9rem;
+            }
+        </style>
+    </head>
+    <body class="dashboard-body">
+        <div class="gate-wrapper">
+            <div class="gate-card">
+                <div class="gate-badge"><i class="fas fa-crown"></i> PRO FEATURE</div>
+                <h1 class="gate-title">Upgrade to NovaHire Pro</h1>
+                <p class="gate-desc">You have reached the daily free limit for <strong><?php echo htmlspecialchars($feature_name); ?></strong>. Upgrade to NovaHire Pro for unlimited AI evaluations, priority ranking, and free certificates.</p>
+                <a href="<?php echo BASE_URL; ?>/seeker/pro.php" class="gate-btn">
+                    <i class="fas fa-bolt mr-2"></i> Unlock with Pro
+                </a>
+                <div>
+                    <a href="javascript:history.back()" class="gate-back">← Go Back</a>
+                </div>
+            </div>
         </div>
-        <div class="nh-pro-gate-price">
-          <span class="nh-pro-gate-amount">' . nh_price($pro_price) . '</span>
-          <span class="nh-pro-gate-period">/month</span>
-        </div>
-        <a href="' . BASE_URL . '/seeker/pro.php" class="nh-pro-gate-btn">
-          <i class="fas fa-crown"></i> Upgrade to Pro
-        </a>
-        <a href="' . BASE_URL . '/seeker/seeker_dashboard.php" class="nh-pro-gate-back">Continue with Free &rarr;</a>
-      </div>
-    </div>';
-
-    if ($echo) echo $html;
-    return $html;
+    </body>
+    </html>
+    <?php
 }
 
-/* ── UI: Soft Limit Gate (inline) ─────────────────────────────────────────── */
-
-function nh_render_soft_gate($feature_key, $remaining, $limit, $echo = true) {
-    $config = nh_feature_config();
-    $feat = $config[$feature_key] ?? ['label' => 'This feature', 'icon' => 'fa-lock'];
-    $pro_price = nh_pricing()['pro_monthly'] ?? 499;
-    $used = $limit - $remaining;
-    $pct = $limit > 0 ? round(($used / $limit) * 100) : 0;
-    $bar_class = $pct >= 80 ? 'danger' : ($pct >= 50 ? 'warning' : '');
-
-    $html = '
-    <div class="nh-soft-gate">
-      <div class="nh-soft-gate-header">
-        <div class="nh-soft-gate-info">
-          <i class="fas ' . htmlspecialchars($feat['icon']) . '"></i>
-          <span>You\'ve used <strong>' . $used . '/' . $limit . '</strong> ' . htmlspecialchars(strtolower($feat['label'])) . ' this month</span>
+/**
+ * Render the Pro upgrade banner on seeker dashboard
+ */
+function nh_render_upgrade_banner() {
+    ?>
+    <div class="container mb-4 reveal">
+        <div style="background: linear-gradient(135deg, #1e3a8a, #0284c7); border-radius: var(--radius-lg, 16px); padding: 22px 28px; color: #fff; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 10px 25px rgba(2, 132, 199, 0.25);">
+            <div style="display: flex; align-items: center; gap: 18px; max-width: 720px;">
+                <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(255,255,255,0.18); backdrop-filter: blur(10px); display: grid; place-items: center; font-size: 1.5rem; flex-shrink: 0;">
+                    <i class="fas fa-crown" style="color: #fbbf24;"></i>
+                </div>
+                <div>
+                    <h4 style="margin: 0 0 4px; font-weight: 800; font-size: 1.15rem; color: #fff;">Supercharge Your Career with NovaHire Pro</h4>
+                    <p style="margin: 0; opacity: 0.92; font-size: 0.88rem; line-height: 1.45;">Unlimited AI tools, practice mock interviews, earn verified skill certificates, and get priority visibility to employers.</p>
+                </div>
+            </div>
+            <a href="<?php echo BASE_URL; ?>/seeker/pro.php" style="background: #fff; color: #0369a1; font-weight: 700; font-size: 0.9rem; padding: 10px 22px; border-radius: 99px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: transform 0.2s, box-shadow 0.2s; white-space: nowrap;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+                <i class="fas fa-bolt" style="color: #f59e0b;"></i> Upgrade to Pro (৳499)
+            </a>
         </div>
-        <a href="' . BASE_URL . '/seeker/pro.php" class="nh-soft-gate-upgrade">
-          <i class="fas fa-crown"></i> Get Unlimited
-        </a>
-      </div>
-      <div class="nh-soft-gate-bar">
-        <div class="nh-soft-gate-fill ' . $bar_class . '" style="width:' . $pct . '%"></div>
-      </div>
-      <p class="nh-soft-gate-hint">Free plan: ' . $limit . ' per month. Pro gives you unlimited access for ' . nh_price($pro_price) . '/mo.</p>
-    </div>';
-
-    if ($echo) echo $html;
-    return $html;
+    </div>
+    <?php
 }
 
-/* ── UI: Usage Bar (neutral, not a gate) ──────────────────────────────────── */
+/**
+ * Get monthly or daily feature usage count for a user
+ */
+function nh_get_usage_count($con, $user_id, $feature) {
+    if (!$con || !$user_id) return 0;
+    if ($feature === 'job_apply') {
+        $start_of_month = date('Y-m-01 00:00:00');
+        $stmt = mysqli_prepare($con, "SELECT COUNT(*) as c FROM job_applications WHERE user_id = ? AND applied_date >= ?");
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, "is", $user_id, $start_of_month);
+            mysqli_stmt_execute($stmt);
+            $res = mysqli_stmt_get_result($stmt);
+            $row = mysqli_fetch_assoc($res);
+            mysqli_stmt_close($stmt);
+            return (int)($row['c'] ?? 0);
+        }
+    }
+    
+    $today = date('Y-m-d');
+    return (int)($_SESSION['feature_usage'][$today][$feature] ?? 0);
+}
 
-function nh_render_usage_bar($con, $user_id, $feature_key, $echo = true) {
-    $config = nh_feature_config();
-    $feat = $config[$feature_key] ?? null;
-    if (!$feat || $feat['free_limit'] === 0) return '';
+/**
+ * Record usage of a feature
+ */
+function nh_record_usage($con, $user_id, $feature) {
+    nh_track_usage($con, $user_id, $feature);
+}
 
+/**
+ * Render visual usage bar for gated actions
+ */
+function nh_render_usage_bar($con, $user_id, $feature) {
     $is_pro = is_user_pro($con, $user_id);
-    if ($is_pro) return '';
-
-    $used  = nh_get_usage_count($con, $user_id, $feature_key);
-    $limit = $feat['free_limit'];
-    $remaining = max(0, $limit - $used);
-    $pct = $limit > 0 ? round(($used / $limit) * 100) : 0;
-    $bar_class = $pct >= 80 ? 'danger' : ($pct >= 50 ? 'warning' : '');
-
-    $html = '
-    <div class="nh-usage-bar-wrap">
-      <div class="nh-usage-bar-text">
-        <span>' . $used . ' / ' . $limit . ' used this month</span>
-        <span class="nh-usage-bar-remaining">' . $remaining . ' remaining</span>
-      </div>
-      <div class="nh-usage-bar">
-        <div class="nh-usage-bar-fill ' . $bar_class . '" style="width:' . $pct . '%"></div>
-      </div>
-    </div>';
-
-    if ($echo) echo $html;
-    return $html;
-}
-
-/* ── UI: Upgrade Banner (for dashboard/nav) ───────────────────────────────── */
-
-function nh_render_upgrade_banner($echo = true) {
-    $pro_price = nh_pricing()['pro_monthly'] ?? 499;
-
-    $html = '
-    <div class="nh-upgrade-banner">
-      <div class="nh-upgrade-banner-content">
-        <div class="nh-upgrade-banner-icon"><i class="fas fa-crown"></i></div>
-        <div class="nh-upgrade-banner-text">
-          <strong>Unlock your full potential</strong>
-          <span>Get Pro for unlimited AI tools, applications & more &mdash; ' . nh_price($pro_price) . '/mo</span>
+    $used = nh_get_usage_count($con, $user_id, $feature);
+    $max = 10;
+    $pct = min(100, round(($used / $max) * 100));
+    $bar_color = $pct >= 80 ? '#dc2626' : ($pct >= 50 ? '#d97706' : '#2563eb');
+    ?>
+    <div style="background:var(--bg-card, #fff);border:1px solid var(--border-light, #e2e8f0);border-radius:12px;padding:12px 16px;margin-bottom:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:0.85rem">
+            <span style="font-weight:600;color:var(--text, #1e293b)">Monthly Applications:</span>
+            <?php if ($is_pro): ?>
+                <span style="font-weight:700;color:#059669"><i class="fas fa-crown" style="color:#d97706"></i> Unlimited (Pro)</span>
+            <?php else: ?>
+                <span style="font-weight:700;color:var(--text, #1e293b)"><?php echo $used; ?> / <?php echo $max; ?> used</span>
+            <?php endif; ?>
         </div>
-        <a href="' . BASE_URL . '/seeker/pro.php" class="nh-upgrade-banner-btn">Upgrade Now</a>
-      </div>
-    </div>';
-
-    if ($echo) echo $html;
-    return $html;
-}
-
-/* ── Helper: check if table exists ────────────────────────────────────────── */
-
-function nh_feature_usage_table_exists($con) {
-    $r = @mysqli_query($con, "SHOW TABLES LIKE 'feature_usage'");
-    return $r && mysqli_num_rows($r) > 0;
+        <?php if (!$is_pro): ?>
+        <div style="background:#e2e8f0;border-radius:99px;height:7px;overflow:hidden">
+            <div style="background:<?php echo $bar_color; ?>;height:100%;width:<?php echo $pct; ?>%;transition:width 0.3s"></div>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php
 }

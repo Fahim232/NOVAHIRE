@@ -20,7 +20,7 @@ if ($is_logged_in && !$is_company_logged_in) {
 }
 
 // Stats
-$con_db = @mysqli_connect('127.0.0.1', 'root', '', 'projects');
+$con_db = $con ?? (@mysqli_connect('127.0.0.1', 'root', '', 'projects', 3307) ?: @mysqli_connect('127.0.0.1', 'root', '', 'projects', 3306));
 $total_jobs = 0;
 $total_companies = 0;
 $total_users = 0;

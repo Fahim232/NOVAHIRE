@@ -1,8 +1,7 @@
 <?php
-session_start();
+require_once __DIR__ . '/../includes/bootstrap.php';
+global $con;
 header('Content-Type: application/json');
-include '../admin/dbcon.php';
-include '../includes/functions.php';
 
 if (!isset($_SESSION['company_id'])) {
     echo json_encode(['ok' => false, 'msg' => 'Unauthorized']);

@@ -1,6 +1,6 @@
 <?php
-    session_start();
-    include '../admin/dbcon.php';
+    require_once __DIR__ . '/../includes/bootstrap.php';
+    global $con;
     
     // Check if company is logged in
     if (!isset($_SESSION['company_id'])) {
@@ -9,7 +9,7 @@
     }
     
     $company_id = $_SESSION['company_id'];
-    $company_name = $_SESSION['company_name'];
+    $company_name = $_SESSION['company_name'] ?? 'Company';
     
     // Get job_id from URL
     if (!isset($_GET['job_id'])) {
@@ -23,7 +23,7 @@
     $verify_query = "SELECT * FROM company_jobs WHERE id = $job_id AND company_id = $company_id";
     $verify_result = mysqli_query($con, $verify_query);
     
-    if (mysqli_num_rows($verify_result) == 0) {
+    if (!$verify_result || mysqli_num_rows($verify_result) == 0) {
         header('Location: my_jobs.php');
         exit;
     }
@@ -34,39 +34,54 @@
     if (isset($_POST['add_question'])) {
         // Capture raw values first
         $question_raw = trim($_POST['question']);
-        $option1_raw = trim($_POST['option1']);
-        $option2_raw = trim($_POST['option2']);
-        $option3_raw = trim($_POST['option3']);
-        $option4_raw = trim($_POST['option4']);
-        $correct_key = $_POST['correct_answer']; // option1|option2|option3|option4
+        $question_type = isset($_POST['question_type']) && $_POST['question_type'] === 'short_answer' ? 'short_answer' : 'mcq';
+        $ideal_answer_raw = isset($_POST['ideal_answer']) ? trim($_POST['ideal_answer']) : '';
+        $time_limit = isset($_POST['time_limit']) ? intval($_POST['time_limit']) : 60;
+        $marks = isset($_POST['marks']) ? intval($_POST['marks']) : 1;
 
-        // Map correct answer key to the actual option text
-        $correct_answer_value = '';
-        $option_map = [
-            'option1' => $option1_raw,
-            'option2' => $option2_raw,
-            'option3' => $option3_raw,
-            'option4' => $option4_raw,
-        ];
-        if (array_key_exists($correct_key, $option_map)) {
-            $correct_answer_value = $option_map[$correct_key];
+        if ($question_type === 'mcq') {
+            $option1_raw = trim($_POST['option1']);
+            $option2_raw = trim($_POST['option2']);
+            $option3_raw = trim($_POST['option3']);
+            $option4_raw = trim($_POST['option4']);
+            $correct_key = $_POST['correct_answer']; // option1|option2|option3|option4
+
+            // Map correct answer key to the actual option text
+            $correct_answer_value = '';
+            $option_map = [
+                'option1' => $option1_raw,
+                'option2' => $option2_raw,
+                'option3' => $option3_raw,
+                'option4' => $option4_raw,
+            ];
+            if (array_key_exists($correct_key, $option_map)) {
+                $correct_answer_value = $option_map[$correct_key];
+            }
+
+            // Escape values for DB
+            $question = mysqli_real_escape_string($con, $question_raw);
+            $option1 = mysqli_real_escape_string($con, $option1_raw);
+            $option2 = mysqli_real_escape_string($con, $option2_raw);
+            $option3 = mysqli_real_escape_string($con, $option3_raw);
+            $option4 = mysqli_real_escape_string($con, $option4_raw);
+            $correct_answer = mysqli_real_escape_string($con, $correct_answer_value);
+            $ideal_answer = mysqli_real_escape_string($con, $ideal_answer_raw);
+
+            $insert_query = "INSERT INTO company_job_questions (job_id, question_type, question, option1, option2, option3, option4, correct_answer, ideal_answer, time_limit, marks)
+                            VALUES ($job_id, 'mcq', '$question', '$option1', '$option2', '$option3', '$option4', '$correct_answer', " . ($ideal_answer ? "'$ideal_answer'" : "NULL") . ", $time_limit, $marks)";
+        } else {
+            // Short answer — no options, no correct_answer
+            $question = mysqli_real_escape_string($con, $question_raw);
+            $ideal_answer = mysqli_real_escape_string($con, $ideal_answer_raw);
+
+            $insert_query = "INSERT INTO company_job_questions (job_id, question_type, question, option1, option2, option3, option4, correct_answer, ideal_answer, time_limit, marks)
+                            VALUES ($job_id, 'short_answer', '$question', NULL, NULL, NULL, NULL, NULL, " . ($ideal_answer ? "'$ideal_answer'" : "NULL") . ", $time_limit, $marks)";
         }
-        
-        // Escape values for DB
-        $question = mysqli_real_escape_string($con, $question_raw);
-        $option1 = mysqli_real_escape_string($con, $option1_raw);
-        $option2 = mysqli_real_escape_string($con, $option2_raw);
-        $option3 = mysqli_real_escape_string($con, $option3_raw);
-        $option4 = mysqli_real_escape_string($con, $option4_raw);
-        $correct_answer = mysqli_real_escape_string($con, $correct_answer_value);
-        
-        $insert_query = "INSERT INTO company_job_questions (job_id, question, option1, option2, option3, option4, correct_answer) 
-                        VALUES ($job_id, '$question', '$option1', '$option2', '$option3', '$option4', '$correct_answer')";
-        
+
         if (mysqli_query($con, $insert_query)) {
             $success_msg = '<div class="alert alert-success">Question added successfully!</div>';
         } else {
-            $error_msg = '<div class="alert alert-danger">Failed to add question. Please try again.</div>';
+            $error_msg = '<div class="alert alert-danger">Failed to add question: ' . htmlspecialchars(mysqli_error($con)) . '</div>';
         }
     }
     
@@ -82,7 +97,7 @@
     // Fetch all questions for this job
     $questions_query = "SELECT * FROM company_job_questions WHERE job_id = $job_id ORDER BY created_at DESC";
     $questions_result = mysqli_query($con, $questions_query);
-    $question_count = mysqli_num_rows($questions_result);
+    $question_count = $questions_result ? mysqli_num_rows($questions_result) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -264,7 +279,7 @@
             border-color: #667eea;
             box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
             background: rgba(255, 255, 255, 0.9);
-            color: var(--text-primary);
+            color: gray;
         }
 
         .btn-add {
@@ -316,6 +331,61 @@
         .text-muted {
             color: var(--text-secondary) !important;
         }
+
+        /* Question type toggle */
+        .qtype-toggle {
+            display: flex;
+            gap: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid var(--glass-border);
+            width: fit-content;
+            margin-bottom: 18px;
+        }
+        .qtype-toggle input[type="radio"] { display: none; }
+        .qtype-toggle label {
+            padding: 10px 28px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            background: var(--glass-bg);
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        .qtype-toggle input[type="radio"]:checked + label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .qtype-badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .qtype-badge.mcq {
+            background: rgba(102, 126, 234, 0.15);
+            color: #667eea;
+        }
+        .qtype-badge.short_answer {
+            background: rgba(234, 88, 12, 0.15);
+            color: #ea580c;
+        }
+        .ideal-answer-box {
+            background: rgba(5, 150, 105, 0.08);
+            border: 1px dashed rgba(5, 150, 105, 0.3);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .ideal-answer-box strong {
+            color: #059669;
+        }
     </style>
 </head>
 <body>
@@ -344,7 +414,16 @@
             <?php if (isset($error_msg)) echo $error_msg; ?>
             <?php if (isset($success_msg)) echo $success_msg; ?>
             
-            <form method="POST" action="">
+            <form method="POST" action="" id="addQuestionForm">
+                <!-- Question Type Toggle -->
+                <label>Question Type</label>
+                <div class="qtype-toggle mb-3">
+                    <input type="radio" name="question_type" id="qt_mcq" value="mcq" checked>
+                    <label for="qt_mcq"><i class="fas fa-list-ul mr-2"></i>Multiple Choice</label>
+                    <input type="radio" name="question_type" id="qt_short" value="short_answer">
+                    <label for="qt_short"><i class="fas fa-pen-fancy mr-2"></i>Short Answer</label>
+                </div>
+
                 <div class="form-group">
                     <label for="question">Question *</label>
                     <textarea class="form-control" id="question" name="question" rows="3" required 
@@ -354,39 +433,68 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="option1">Option 1 *</label>
-                            <input type="text" class="form-control" id="option1" name="option1" required>
+                            <label for="time_limit"><i class="far fa-clock mr-1"></i> Time Limit (Seconds) *</label>
+                            <input type="number" class="form-control" id="time_limit" name="time_limit" value="60" min="1" required>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="option2">Option 2 *</label>
-                            <input type="text" class="form-control" id="option2" name="option2" required>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="option3">Option 3 *</label>
-                            <input type="text" class="form-control" id="option3" name="option3" required>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="option4">Option 4 *</label>
-                            <input type="text" class="form-control" id="option4" name="option4" required>
+                            <label for="marks"><i class="fas fa-star mr-1"></i> Marks (Points) *</label>
+                            <input type="number" class="form-control" id="marks" name="marks" value="1" min="1" required>
                         </div>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="correct_answer">Correct Answer *</label>
-                    <select class="form-control" id="correct_answer" name="correct_answer" required>
-                        <option value="">Select the correct answer</option>
-                        <option value="option1">Option 1</option>
-                        <option value="option2">Option 2</option>
-                        <option value="option3">Option 3</option>
-                        <option value="option4">Option 4</option>
-                    </select>
+                <!-- MCQ Options (shown only for MCQ type) -->
+                <div id="mcqOptionsBlock">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="option1">Option 1 *</label>
+                                <input type="text" class="form-control mcq-field" id="option1" name="option1" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="option2">Option 2 *</label>
+                                <input type="text" class="form-control mcq-field" id="option2" name="option2" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="option3">Option 3 *</label>
+                                <input type="text" class="form-control mcq-field" id="option3" name="option3" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="option4">Option 4 *</label>
+                                <input type="text" class="form-control mcq-field" id="option4" name="option4" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="correct_answer">Correct Answer *</label>
+                        <select class="form-control mcq-field" id="correct_answer" name="correct_answer" required>
+                            <option value="">Select the correct answer</option>
+                            <option value="option1">Option 1</option>
+                            <option value="option2">Option 2</option>
+                            <option value="option3">Option 3</option>
+                            <option value="option4">Option 4</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Ideal Answer (for AI grading — useful for both types but required for short answer) -->
+                <div class="form-group" id="idealAnswerBlock">
+                    <label for="ideal_answer">
+                        <i class="fas fa-robot mr-1" style="color:#667eea"></i>
+                        Ideal Answer <span id="idealAnswerReqLabel">(Optional for MCQ)</span>
+                    </label>
+                    <textarea class="form-control" id="ideal_answer" name="ideal_answer" rows="3" 
+                              placeholder="Provide the ideal/expected answer. For short-answer questions this guides the AI grader."></textarea>
+                    <small class="text-muted">This is used by the AI engine to evaluate short-answer responses.</small>
                 </div>
                 
                 <button type="submit" name="add_question" class="btn btn-add">
@@ -403,6 +511,7 @@
                 <?php $counter = 1; ?>
                 <?php while ($q = mysqli_fetch_assoc($questions_result)): ?>
                     <?php
+                        $q_type = isset($q['question_type']) ? $q['question_type'] : 'mcq';
                         // Normalize legacy correct_answer that might store option key
                         $correct_value = $q['correct_answer'];
                         if (in_array($correct_value, ['option1','option2','option3','option4'])) {
@@ -414,9 +523,15 @@
                             <div class="d-flex align-items-start">
                                 <span class="question-number"><?php echo $counter++; ?></span>
                                 <div>
-                                    <h5><?php echo $q['question']; ?></h5>
+                                    <span class="qtype-badge <?php echo $q_type; ?>">
+                                        <?php echo $q_type === 'short_answer' ? 'Short Answer' : 'MCQ'; ?>
+                                    </span>
+                                    <h5 class="mt-1"><?php echo htmlspecialchars($q['question']); ?></h5>
                                     <small class="text-muted">
-                                        <i class="far fa-clock mr-2"></i>
+                                        <i class="far fa-clock mr-1"></i> <?php echo isset($q['time_limit']) ? $q['time_limit'] : 60; ?>s
+                                        <span class="mx-2">|</span>
+                                        <i class="fas fa-star mr-1"></i> <?php echo isset($q['marks']) ? $q['marks'] : 1; ?> pts
+                                        <span class="mx-2">|</span>
                                         Added on <?php echo date('M d, Y', strtotime($q['created_at'])); ?>
                                     </small>
                                 </div>
@@ -428,32 +543,46 @@
                             </a>
                         </div>
                         
+                        <?php if ($q_type === 'mcq'): ?>
                         <div class="options">
                             <div class="option <?php echo ($correct_value == $q['option1']) ? 'correct-answer' : ''; ?>">
-                                <strong>A.</strong> <?php echo $q['option1']; ?>
+                                <strong>A.</strong> <?php echo htmlspecialchars($q['option1']); ?>
                                 <?php if ($correct_value == $q['option1']): ?>
                                     <i class="fas fa-check-circle text-success float-right"></i>
                                 <?php endif; ?>
                             </div>
                             <div class="option <?php echo ($correct_value == $q['option2']) ? 'correct-answer' : ''; ?>">
-                                <strong>B.</strong> <?php echo $q['option2']; ?>
+                                <strong>B.</strong> <?php echo htmlspecialchars($q['option2']); ?>
                                 <?php if ($correct_value == $q['option2']): ?>
                                     <i class="fas fa-check-circle text-success float-right"></i>
                                 <?php endif; ?>
                             </div>
                             <div class="option <?php echo ($correct_value == $q['option3']) ? 'correct-answer' : ''; ?>">
-                                <strong>C.</strong> <?php echo $q['option3']; ?>
+                                <strong>C.</strong> <?php echo htmlspecialchars($q['option3']); ?>
                                 <?php if ($correct_value == $q['option3']): ?>
                                     <i class="fas fa-check-circle text-success float-right"></i>
                                 <?php endif; ?>
                             </div>
                             <div class="option <?php echo ($correct_value == $q['option4']) ? 'correct-answer' : ''; ?>">
-                                <strong>D.</strong> <?php echo $q['option4']; ?>
+                                <strong>D.</strong> <?php echo htmlspecialchars($q['option4']); ?>
                                 <?php if ($correct_value == $q['option4']): ?>
                                     <i class="fas fa-check-circle text-success float-right"></i>
                                 <?php endif; ?>
                             </div>
                         </div>
+                        <?php else: ?>
+                        <div class="alert alert-info mb-0" style="border-radius:10px">
+                            <i class="fas fa-pen-fancy mr-2"></i>
+                            Candidates will type a free-text answer. AI will grade responses.
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($q['ideal_answer'])): ?>
+                        <div class="ideal-answer-box">
+                            <strong><i class="fas fa-robot mr-1"></i>Ideal Answer:</strong>
+                            <?php echo htmlspecialchars($q['ideal_answer']); ?>
+                        </div>
+                        <?php endif; ?>
                     </div>
                 <?php endwhile; ?>
             <?php else: ?>
@@ -469,6 +598,42 @@
     </footer>
 
     <script>
+        // Question type toggle: show/hide MCQ options
+        const qtMcq   = document.getElementById('qt_mcq');
+        const qtShort = document.getElementById('qt_short');
+        const mcqBlock = document.getElementById('mcqOptionsBlock');
+        const idealLabel = document.getElementById('idealAnswerReqLabel');
+        const mcqFields = document.querySelectorAll('.mcq-field');
+
+        const timeLimitInput = document.getElementById('time_limit');
+        const marksInput = document.getElementById('marks');
+
+        function toggleQuestionType() {
+            const isMcq = qtMcq.checked;
+            mcqBlock.style.display = isMcq ? 'block' : 'none';
+            idealLabel.textContent = isMcq ? '(Optional for MCQ)' : '(Recommended for AI grading)';
+            mcqFields.forEach(function(f) {
+                if (isMcq) {
+                    f.setAttribute('required', 'required');
+                } else {
+                    f.removeAttribute('required');
+                }
+            });
+
+            // Adjust default time limits and marks when toggling
+            if (isMcq && timeLimitInput.value == '180') {
+                timeLimitInput.value = '60';
+                marksInput.value = '1';
+            } else if (!isMcq && timeLimitInput.value == '60') {
+                timeLimitInput.value = '180';
+                marksInput.value = '5';
+            }
+        }
+
+        qtMcq.addEventListener('change', toggleQuestionType);
+        qtShort.addEventListener('change', toggleQuestionType);
+        toggleQuestionType(); // init state
+
         // Auto-populate correct answer select based on typed options
         document.getElementById('correct_answer').addEventListener('change', function() {
             const selectedOption = this.value;

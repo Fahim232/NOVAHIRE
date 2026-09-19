@@ -14,7 +14,7 @@
 --  Run:  mysql -u root projects < features_v3.sql
 --        (or import via phpMyAdmin into the `projects` database)
 -- ============================================================================
-
+USE projects;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+00:00";
 

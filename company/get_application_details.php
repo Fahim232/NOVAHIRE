@@ -1,6 +1,6 @@
 <?php 
-session_start();
-include('../admin/dbcon.php');
+require_once __DIR__ . '/../includes/bootstrap.php';
+global $con;
 
 // Check if company is logged in
 if (!isset($_SESSION['company_id'])) {
@@ -26,10 +26,14 @@ $query = "SELECT ca.*, u.username, u.email, u.phone, u.user_degree, u.user_skill
           WHERE ca.id = ? AND ca.company_id = ?";
           
 $stmt = mysqli_prepare($con, $query);
-mysqli_stmt_bind_param($stmt, "ii", $application_id, $company_id);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
-$app = mysqli_fetch_assoc($result);
+$app = null;
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "ii", $application_id, $company_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $app = mysqli_fetch_assoc($result);
+    mysqli_stmt_close($stmt);
+}
 
 if (!$app) {
     echo '<div class="alert alert-danger">Application not found</div>';

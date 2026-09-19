@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
+global $con;
 require_seeker_login();
 
 $user_id = $_SESSION['id'];
@@ -44,11 +45,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$alerts = [];
 $alert_stmt = mysqli_prepare($con, "SELECT * FROM job_alerts WHERE user_id = ? ORDER BY created_at DESC");
-mysqli_stmt_bind_param($alert_stmt, "i", $user_id);
-mysqli_stmt_execute($alert_stmt);
-$alerts = mysqli_fetch_all(mysqli_stmt_get_result($alert_stmt), MYSQLI_ASSOC);
-mysqli_stmt_close($alert_stmt);
+if ($alert_stmt) {
+    mysqli_stmt_bind_param($alert_stmt, "i", $user_id);
+    mysqli_stmt_execute($alert_stmt);
+    $alerts = mysqli_fetch_all(mysqli_stmt_get_result($alert_stmt), MYSQLI_ASSOC);
+    mysqli_stmt_close($alert_stmt);
+}
 
 $matching_jobs = [];
 foreach (array_slice($alerts, 0, 3) as $alert) {

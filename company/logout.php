@@ -1,6 +1,6 @@
 <?php
-    session_start();
-    session_destroy();
-    header('Location: ../auth/login.php');
-    exit;
+require_once __DIR__ . '/../includes/bootstrap.php';
+session_destroy();
+header('Location: ' . BASE_URL . '/auth/login.php');
+exit;
 ?>

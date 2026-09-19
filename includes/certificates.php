@@ -1,150 +1,120 @@
 <?php
 /**
- * NovaHire — Verifiable Skill Certificates
- * ---------------------------------------------------------------------------
- * When a seeker passes a grooming quiz they can claim a shareable, verifiable
- * certificate. Free for NovaHire Pro members; a one-off fee otherwise.
- * Each certificate carries a unique code verifiable on a public page.
+ * NovaHire — Certificates Engine
+ * Handles skill certificate issuance, verification, and revenue calculations.
  */
 
-if (defined('NOVAHIRE_CERTIFICATES')) return;
-define('NOVAHIRE_CERTIFICATES', true);
+if (defined('NOVAHIRE_CERTIFICATES_LOADED')) return;
+define('NOVAHIRE_CERTIFICATES_LOADED', true);
 
-function nh_cert_title($category) {
-    return $category . ' Proficiency Certificate';
+if (!isset($con)) {
+    require_once __DIR__ . '/bootstrap.php';
+}
+if (!function_exists('is_user_pro')) {
+    require_once __DIR__ . '/monetization.php';
 }
 
-function nh_generate_cert_code() {
-    // e.g. NH-4F9A-2C71
-    return 'NH-' . strtoupper(bin2hex(random_bytes(2))) . '-' . strtoupper(bin2hex(random_bytes(2)));
-}
-
-/* ── Eligibility ───────────────────────────────────────────────────────────── */
-/** Categories the user passed a quiz in but has not yet claimed a certificate for. */
-function nh_user_eligible_categories($con, $user_id) {
-    $passed = [];
-    $stmt = mysqli_prepare($con, "SELECT DISTINCT category FROM user_quiz_status WHERE user_id = ? AND status = 'passed'");
-    mysqli_stmt_bind_param($stmt, "i", $user_id);
-    mysqli_stmt_execute($stmt);
-    $res = mysqli_stmt_get_result($stmt);
-    while ($r = mysqli_fetch_assoc($res)) $passed[$r['category']] = true;
-    mysqli_stmt_close($stmt);
-
-    // remove categories already certified
-    $stmt = mysqli_prepare($con, "SELECT DISTINCT category FROM certificates WHERE user_id = ?");
-    mysqli_stmt_bind_param($stmt, "i", $user_id);
-    mysqli_stmt_execute($stmt);
-    $res = mysqli_stmt_get_result($stmt);
-    while ($r = mysqli_fetch_assoc($res)) unset($passed[$r['category']]);
-    mysqli_stmt_close($stmt);
-
-    return array_keys($passed);
-}
-
-function nh_user_certified_categories($con, $user_id) {
-    $cats = [];
-    $stmt = mysqli_prepare($con, "SELECT DISTINCT category FROM certificates WHERE user_id = ? AND is_paid = 1");
-    mysqli_stmt_bind_param($stmt, "i", $user_id);
-    mysqli_stmt_execute($stmt);
-    $res = mysqli_stmt_get_result($stmt);
-    while ($r = mysqli_fetch_assoc($res)) $cats[] = $r['category'];
-    mysqli_stmt_close($stmt);
-    return $cats;
-}
-
-/* ── Issue / fulfil ────────────────────────────────────────────────────────── */
 /**
- * Create a certificate row. If the user is Pro (or $free), it's issued paid/valid
- * immediately and returns ['status'=>'issued','id'=>..]. Otherwise it's created
- * unpaid and returns ['status'=>'payment','id'=>..] so the caller sends the user
- * to checkout with item_id = certificate id.
+ * Return formatted display title for a skill certificate
  */
-function nh_issue_certificate($con, $user_id, $category, $score = null) {
-    // guard: must have passed this category and not already have it
-    if (!in_array($category, nh_user_eligible_categories($con, $user_id))) {
-        return ['status' => 'ineligible', 'id' => null];
+function nh_cert_title($category) {
+    $category = trim($category);
+    return 'Certified ' . $category . ' Professional';
+}
+
+/**
+ * Generate a unique, readable certificate verification code
+ */
+function nh_generate_cert_code() {
+    return 'NH-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4) . '-' . substr(bin2hex(random_bytes(4)), 0, 4));
+}
+
+/**
+ * Issue or prepare a skill certificate for a user
+ * Returns ['status' => 'issued'|'payment'|'error', 'id' => int]
+ */
+function nh_issue_certificate($con, $user_id, $category) {
+    if (!$con || !$user_id || empty($category)) {
+        return ['status' => 'invalid_params'];
     }
 
-    $is_pro = function_exists('is_user_pro') ? is_user_pro($con, $user_id) : false;
-    $title  = nh_cert_title($category);
-    $code   = nh_generate_cert_code();
-    $paid   = $is_pro ? 1 : 0;
-
-    $stmt = mysqli_prepare($con, "INSERT INTO certificates (user_id, category, title, cert_code, score, is_paid, issued_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-    mysqli_stmt_bind_param($stmt, "isssii", $user_id, $category, $title, $code, $score, $paid);
-    $ok = mysqli_stmt_execute($stmt);
-    $cert_id = $ok ? mysqli_insert_id($con) : null;
-    mysqli_stmt_close($stmt);
-    if (!$ok) return ['status' => 'error', 'id' => null];
-
-    if ($is_pro) {
-        if (function_exists('create_notification')) {
-            create_notification($con, 'user', $user_id, 'system', null,
-                'Certificate issued 🎓', 'Your free <strong>' . htmlspecialchars($title) . '</strong> is ready (a NovaHire Pro perk).', 'system', 'certificates', $cert_id);
+    // Check if certificate already issued for this user & category
+    $stmt = mysqli_prepare($con, "SELECT id, is_paid FROM certificates WHERE user_id = ? AND category = ? LIMIT 1");
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "is", $user_id, $category);
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
+        $existing = mysqli_fetch_assoc($res);
+        mysqli_stmt_close($stmt);
+        if ($existing) {
+            if ($existing['is_paid']) {
+                return ['status' => 'issued', 'id' => (int)$existing['id']];
+            } else {
+                if (is_user_pro($con, $user_id)) {
+                    // Automatically mark paid for Pro user
+                    @mysqli_query($con, "UPDATE certificates SET is_paid = 1 WHERE id = " . (int)$existing['id']);
+                    return ['status' => 'issued', 'id' => (int)$existing['id']];
+                }
+                return ['status' => 'payment', 'id' => (int)$existing['id']];
+            }
         }
-        return ['status' => 'issued', 'id' => $cert_id];
     }
-    return ['status' => 'payment', 'id' => $cert_id];
-}
 
-/** Called by fulfill_payment() when a certificate payment completes. */
-function nh_mark_certificate_paid($con, $cert_id, $payment_id = null) {
-    $stmt = mysqli_prepare($con, "UPDATE certificates SET is_paid = 1, payment_id = ? WHERE id = ?");
-    mysqli_stmt_bind_param($stmt, "si", $payment_id, $cert_id);
-    $ok = mysqli_stmt_execute($stmt);
-    mysqli_stmt_close($stmt);
-
-    if ($ok) {
-        $cert = nh_get_certificate($con, $cert_id);
-        if ($cert && function_exists('create_notification')) {
-            create_notification($con, 'user', $cert['user_id'], 'system', null,
-                'Certificate issued 🎓', 'Your <strong>' . htmlspecialchars($cert['title']) . '</strong> is verified and ready to share.', 'system', 'certificates', $cert_id);
+    // Determine highest score achieved in this category
+    $score = 85; // Default passing grade
+    $score_q = mysqli_prepare($con, "SELECT score FROM quiz_results WHERE user_id = ? AND category = ? ORDER BY score DESC LIMIT 1");
+    if ($score_q) {
+        mysqli_stmt_bind_param($score_q, "is", $user_id, $category);
+        mysqli_stmt_execute($score_q);
+        $sres = mysqli_stmt_get_result($score_q);
+        if ($srow = mysqli_fetch_assoc($sres)) {
+            $score = max($score, (int)$srow['score']);
         }
+        mysqli_stmt_close($score_q);
     }
-    return $ok;
+
+    $title = nh_cert_title($category);
+    $cert_code = nh_generate_cert_code();
+    $is_pro = is_user_pro($con, $user_id);
+    $is_paid = $is_pro ? 1 : 0;
+
+    $ins = mysqli_prepare($con, "INSERT INTO certificates (user_id, category, title, cert_code, score, is_paid, issued_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    if ($ins) {
+        mysqli_stmt_bind_param($ins, "isssii", $user_id, $category, $title, $cert_code, $score, $is_paid);
+        if (mysqli_stmt_execute($ins)) {
+            $cert_id = mysqli_insert_id($con);
+            mysqli_stmt_close($ins);
+            return [
+                'status' => $is_paid ? 'issued' : 'payment',
+                'id' => (int)$cert_id,
+                'cert_code' => $cert_code
+            ];
+        }
+        mysqli_stmt_close($ins);
+    }
+
+    return ['status' => 'db_error'];
 }
 
-/* ── Lookups ───────────────────────────────────────────────────────────────── */
-function nh_get_certificate($con, $cert_id) {
-    $stmt = mysqli_prepare($con, "SELECT * FROM certificates WHERE id = ? LIMIT 1");
-    mysqli_stmt_bind_param($stmt, "i", $cert_id);
-    mysqli_stmt_execute($stmt);
-    $row = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
-    mysqli_stmt_close($stmt);
-    return $row ?: null;
-}
-
-function nh_get_user_certificates($con, $user_id) {
-    $stmt = mysqli_prepare($con, "SELECT * FROM certificates WHERE user_id = ? ORDER BY issued_at DESC");
-    mysqli_stmt_bind_param($stmt, "i", $user_id);
-    mysqli_stmt_execute($stmt);
-    $res = mysqli_stmt_get_result($stmt);
-    $rows = [];
-    while ($r = mysqli_fetch_assoc($res)) $rows[] = $r;
-    mysqli_stmt_close($stmt);
-    return $rows;
-}
-
-/** Public verification: returns the certificate + holder name, only if valid (paid). */
-function nh_get_certificate_by_code($con, $code) {
-    $stmt = mysqli_prepare($con, "SELECT c.*, u.username AS holder_name FROM certificates c JOIN user_info u ON u.id = c.user_id WHERE c.cert_code = ? AND c.is_paid = 1 LIMIT 1");
-    mysqli_stmt_bind_param($stmt, "s", $code);
-    mysqli_stmt_execute($stmt);
-    $row = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
-    mysqli_stmt_close($stmt);
-    return $row ?: null;
-}
-
-/* ── Revenue (admin) ───────────────────────────────────────────────────────── */
+/**
+ * Calculate certificate revenue metrics for admin dashboard
+ */
 function nh_certificate_revenue($con) {
-    $out = ['issued' => 0, 'paid_count' => 0, 'revenue' => 0.0];
-    $price = nh_pricing()['certificate_price'];
-    $r = @mysqli_query($con, "SELECT COUNT(*) issued, SUM(is_paid = 1 AND payment_id IS NOT NULL) paid_count FROM certificates");
-    if ($r && ($row = mysqli_fetch_assoc($r))) {
-        $out['issued'] = (int)$row['issued'];
-        $out['paid_count'] = (int)$row['paid_count'];
-        $out['revenue'] = $out['paid_count'] * $price;
+    if (!$con || !nh_table_exists($con, 'certificates')) {
+        return ['issued' => 0, 'paid_count' => 0, 'revenue' => 0.0];
     }
-    return $out;
+    
+    $r = @mysqli_query($con, "SELECT COUNT(*) as issued, SUM(CASE WHEN is_paid = 1 THEN 1 ELSE 0 END) as paid_count FROM certificates");
+    if ($r && ($row = mysqli_fetch_assoc($r))) {
+        $issued = (int)$row['issued'];
+        $paid_count = (int)$row['paid_count'];
+        $price = nh_pricing()['certificate_price'];
+        return [
+            'issued' => $issued,
+            'paid_count' => $paid_count,
+            'revenue' => $paid_count * $price
+        ];
+    }
+
+    return ['issued' => 0, 'paid_count' => 0, 'revenue' => 0.0];
 }
-?>

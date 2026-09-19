@@ -1,6 +1,6 @@
 <?php 
-session_start();
-include('../admin/dbcon.php');
+require_once __DIR__ . '/../includes/bootstrap.php';
+global $con;
 
 // Check if company is logged in
 if (!isset($_SESSION['company_id'])) {
@@ -9,7 +9,7 @@ if (!isset($_SESSION['company_id'])) {
 }
 
 $company_id = $_SESSION['company_id'];
-$company_name = $_SESSION['company_name'];
+$company_name = $_SESSION['company_name'] ?? 'Company';
 
 // Handle status update
 $alert_message = '';
@@ -41,14 +41,16 @@ $search = isset($_GET['search']) ? mysqli_real_escape_string($con, $_GET['search
 // Get all categories that have applications for this company
 $categories_query = "SELECT DISTINCT category FROM category_applications WHERE company_id = ? ORDER BY category";
 $stmt = mysqli_prepare($con, $categories_query);
-mysqli_stmt_bind_param($stmt, "i", $company_id);
-mysqli_stmt_execute($stmt);
-$categories_result = mysqli_stmt_get_result($stmt);
 $available_categories = [];
-while ($row = mysqli_fetch_assoc($categories_result)) {
-    $available_categories[] = $row['category'];
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "i", $company_id);
+    mysqli_stmt_execute($stmt);
+    $categories_result = mysqli_stmt_get_result($stmt);
+    while ($row = mysqli_fetch_assoc($categories_result)) {
+        $available_categories[] = $row['category'];
+    }
+    mysqli_stmt_close($stmt);
 }
-mysqli_stmt_close($stmt);
 
 // Build query with filters
 $applications_query = "SELECT ca.*, u.username, u.email, u.phone, u.user_degree, u.user_skills,
@@ -85,9 +87,12 @@ if (!empty($search)) {
 $applications_query .= " ORDER BY ca.application_date DESC";
 
 $stmt = mysqli_prepare($con, $applications_query);
-mysqli_stmt_bind_param($stmt, $types, ...$params);
-mysqli_stmt_execute($stmt);
-$applications_result = mysqli_stmt_get_result($stmt);
+$applications_result = false;
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, $types, ...$params);
+    mysqli_stmt_execute($stmt);
+    $applications_result = mysqli_stmt_get_result($stmt);
+}
 
 // Get statistics
 $stats_query = "SELECT 
@@ -98,10 +103,13 @@ $stats_query = "SELECT
                 SUM(CASE WHEN status = 'Rejected' THEN 1 ELSE 0 END) as rejected
                 FROM category_applications WHERE company_id = ?";
 $stmt_stats = mysqli_prepare($con, $stats_query);
-mysqli_stmt_bind_param($stmt_stats, "i", $company_id);
-mysqli_stmt_execute($stmt_stats);
-$stats = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_stats));
-mysqli_stmt_close($stmt_stats);
+$stats = ['total' => 0, 'pending' => 0, 'approved' => 0, 'interview' => 0, 'rejected' => 0];
+if ($stmt_stats) {
+    mysqli_stmt_bind_param($stmt_stats, "i", $company_id);
+    mysqli_stmt_execute($stmt_stats);
+    $stats = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_stats)) ?: $stats;
+    mysqli_stmt_close($stmt_stats);
+}
 
 $category_styles = [
     'Java'        => ['icon' => 'fa-brands fa-java', 'color' => '#f89820'],

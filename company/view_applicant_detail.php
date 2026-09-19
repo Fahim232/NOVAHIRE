@@ -1,6 +1,6 @@
 <?php
-    session_start();
-    include '../admin/dbcon.php';
+    require_once __DIR__ . '/../includes/bootstrap.php';
+    global $con;
 
     // Check if company is logged in
     if (!isset($_SESSION['company_id'])) {
@@ -9,7 +9,7 @@
     }
 
     $company_id = $_SESSION['company_id'];
-    $company_name = $_SESSION['company_name'];
+    $company_name = $_SESSION['company_name'] ?? 'Company';
 
     // Get application ID
     if (!isset($_GET['id'])) {
@@ -30,12 +30,33 @@
                   WHERE ja.id = $app_id AND ja.company_id = $company_id";
     $app_result = mysqli_query($con, $app_query);
 
-    if (mysqli_num_rows($app_result) == 0) {
+    if (!$app_result || mysqli_num_rows($app_result) == 0) {
         header('Location: view_applicants.php');
         exit;
     }
 
     $app = mysqli_fetch_assoc($app_result);
+
+    // Fetch latest assessment session for this application
+    $sess_query = "SELECT * FROM assessment_sessions WHERE application_id = $app_id ORDER BY id DESC LIMIT 1";
+    $sess_result = mysqli_query($con, $sess_query);
+    $assessment_session = $sess_result && mysqli_num_rows($sess_result) > 0 ? mysqli_fetch_assoc($sess_result) : null;
+    
+    $responses = [];
+    if ($assessment_session) {
+        $sess_id = $assessment_session['id'];
+        $resp_query = "SELECT ar.*, cjq.question, cjq.question_type, cjq.ideal_answer, cjq.correct_answer, cjq.marks 
+                       FROM assessment_responses ar
+                       JOIN company_job_questions cjq ON ar.question_id = cjq.id
+                       WHERE ar.session_id = $sess_id
+                       ORDER BY ar.question_index ASC";
+        $resp_result = mysqli_query($con, $resp_query);
+        if ($resp_result) {
+            while ($row = mysqli_fetch_assoc($resp_result)) {
+                $responses[] = $row;
+            }
+        }
+    }
 
     // Update application status
     if (isset($_POST['update_status'])) {
@@ -69,7 +90,11 @@
     $initial = strtoupper(substr(trim($app['username']), 0, 1) ?: '?');
     $g = $avatar_gradients[abs(crc32($app['username'])) % count($avatar_gradients)];
 
-    $quiz_score = isset($app['score_percentage']) ? floatval($app['score_percentage']) : intval($app['quiz_score']);
+    if ($assessment_session && $assessment_session['score_final'] !== null) {
+        $quiz_score = floatval($assessment_session['score_final']);
+    } else {
+        $quiz_score = isset($app['score_percentage']) ? floatval($app['score_percentage']) : intval($app['quiz_score']);
+    }
     $score_pct = round($quiz_score);
     $score_color = $score_pct >= 60 ? '#059669' : ($score_pct >= 30 ? '#d97706' : '#dc2626');
 
@@ -479,7 +504,86 @@
                 </div>
             </div>
 
-            <?php if ($app['quiz_status'] != 'not_taken' && !empty($app['total_questions'])): ?>
+            <?php if ($assessment_session): ?>
+                <div class="ad-score" style="margin-bottom: 2rem;">
+                    <div class="ad-ring" style="background: conic-gradient(<?php echo $score_color; ?> <?php echo $score_pct; ?>%, var(--ad-border) 0);">
+                        <div class="inner">
+                            <b style="color: <?php echo $score_color; ?>;"><?php echo $score_pct; ?>%</b>
+                            <small>Overall Score</small>
+                        </div>
+                    </div>
+                    <div class="ad-score-stats">
+                        <div class="ad-score-stat">
+                            <b><?php echo floatval($assessment_session['score_mcq']); ?></b>
+                            <span><i class="fas fa-list-ol mr-1" style="color:var(--ad-primary);"></i>MCQ Score</span>
+                        </div>
+                        <div class="ad-score-stat">
+                            <b><?php echo floatval($assessment_session['score_short']); ?></b>
+                            <span><i class="fas fa-pen-fancy mr-1" style="color:#d97706;"></i>Short Answer Score</span>
+                        </div>
+                        <div class="ad-score-stat">
+                            <b><?php echo $assessment_session['risk_level']; ?>/100</b>
+                            <span><i class="fas fa-shield-alt mr-1" style="color:<?php echo $assessment_session['risk_level'] > 50 ? '#dc2626' : '#059669'; ?>;"></i>Risk Level</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ad-responses" style="margin-top: 2rem;">
+                    <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--ad-border); padding-bottom: 0.5rem; font-size: 1.1rem; color: #1e293b;">Detailed Responses & AI Evaluation</h4>
+                    <?php if (empty($responses)): ?>
+                        <p style="color: var(--ad-muted);">No responses recorded.</p>
+                    <?php else: ?>
+                        <?php foreach ($responses as $resp): ?>
+                            <div style="background: #f8fafc; border: 1px solid var(--ad-border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                                    <strong style="font-size: 1.05rem; color: #0f172a;">Q<?php echo $resp['question_index'] + 1; ?>: <?php echo htmlspecialchars($resp['question']); ?></strong>
+                                    <span style="background: #e0e7ff; color: #4338ca; font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; white-space: nowrap; font-weight: bold; margin-left: 1rem;"><?php echo $resp['marks']; ?> Marks</span>
+                                </div>
+                                <div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">
+                                    Type: <?php echo $resp['question_type'] == 'mcq' ? 'Multiple Choice' : 'Short Answer'; ?>
+                                </div>
+                                <div style="margin-bottom: 1rem;">
+                                    <strong style="color: #334155; font-size: 0.9rem;">Candidate's Answer:</strong>
+                                    <div style="background: #fff; border: 1px solid #cbd5e1; padding: 0.75rem; border-radius: 6px; margin-top: 0.25rem; color: #0f172a; white-space: pre-wrap;">
+                                        <?php echo htmlspecialchars($resp['answer_text'] ?: 'No answer provided'); ?>
+                                    </div>
+                                </div>
+                                <?php if ($resp['question_type'] == 'mcq'): ?>
+                                    <div style="margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                        <strong style="color: #334155;">Correct Answer:</strong> <span style="color: #0f172a;"><?php echo htmlspecialchars($resp['correct_answer']); ?></span>
+                                    </div>
+                                    <div style="font-size: 0.95rem;">
+                                        <strong style="color: #334155;">Marks Awarded:</strong> 
+                                        <span style="color: <?php echo $resp['marks_awarded'] == $resp['marks'] ? '#059669' : '#dc2626'; ?>; font-weight: bold;">
+                                            <?php echo floatval($resp['marks_awarded']); ?> / <?php echo $resp['marks']; ?>
+                                        </span>
+                                    </div>
+                                <?php else: ?>
+                                    <div style="margin-bottom: 1rem;">
+                                        <strong style="color: #334155; font-size: 0.9rem;">Ideal Answer / Rubric:</strong>
+                                        <div style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem; font-style: italic;">
+                                            <?php echo htmlspecialchars($resp['ideal_answer']); ?>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($resp['ai_feedback'])): ?>
+                                        <div style="margin-bottom: 1rem; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.75rem; border-radius: 6px;">
+                                            <strong style="color: #166534; font-size: 0.9rem; display: block; margin-bottom: 0.25rem;"><i class="fas fa-robot mr-1"></i>AI Feedback:</strong>
+                                            <p style="margin: 0; font-size: 0.9rem; color: #14532d; line-height: 1.5;"><?php echo nl2br(htmlspecialchars($resp['ai_feedback'])); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div style="font-size: 0.95rem;">
+                                        <strong style="color: #334155;">Marks Awarded (AI):</strong> 
+                                        <span style="color: <?php echo $resp['marks_awarded'] > 0 ? '#059669' : '#dc2626'; ?>; font-weight: bold;">
+                                            <?php echo floatval($resp['marks_awarded']); ?> / <?php echo $resp['marks']; ?>
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+            <?php elseif ($app['quiz_status'] != 'not_taken' && !empty($app['total_questions'])): ?>
                 <div class="ad-score">
                     <div class="ad-ring" style="background: conic-gradient(<?php echo $score_color; ?> <?php echo $score_pct; ?>%, var(--ad-border) 0);">
                         <div class="inner">

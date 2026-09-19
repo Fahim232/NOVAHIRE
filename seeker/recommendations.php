@@ -77,7 +77,7 @@ function rc_color($s){ return $s>=70?'#059669':($s>=40?'#d97706':'#dc2626'); }
       <?php foreach ($recs as $j):
         $ai = $j['ai']; $score = (int)$ai['score'];
         $matched = array_slice($ai['matched_skills'] ?? [], 0, 4);
-        $missing = array_slice($ai['missing_skills'] ?? [], 0, 3);
+        $missing = array_slice($ai['missing_required'] ?? [], 0, 3);
         $feat = nh_is_job_featured($j);
       ?>
       <div class="jc <?= $feat?'feat':'' ?>">
@@ -88,11 +88,11 @@ function rc_color($s){ return $s>=70?'#059669':($s>=40?'#d97706':'#dc2626'); }
             <div class="jc-title"><?= htmlspecialchars($j['job_title']) ?></div>
             <div class="jc-co"><?= htmlspecialchars($j['company_name']) ?><?= !empty($j['job_location'])?' · '.htmlspecialchars($j['job_location']):'' ?></div>
           </div>
-          <div class="jc-ring" style="--v:<?= $score ?>;--rc:<?= rc_color($score) ?>"><span><?= $score ?>%</span></div>
+          <div class="jc-ring" style="--v:<?= $score ?>;--rc:<?= rc_color($score) ?>" title="<?= htmlspecialchars(implode("\n", $ai['explanation_points'] ?? [])) ?>"><span><?= $score ?>%</span></div>
         </div>
 
         <div class="jc-label" style="color:<?= htmlspecialchars($ai['label_color'] ?? 'var(--primary)') ?>"><?= htmlspecialchars($ai['label'] ?? '') ?></div>
-        <div class="sk">
+        <div class="sk" title="<?= htmlspecialchars(implode("\n", $ai['explanation_points'] ?? [])) ?>">
           <?php foreach ($matched as $s): ?><span class="s match"><i class="fas fa-check mr-1"></i><?= htmlspecialchars($s) ?></span><?php endforeach; ?>
           <?php foreach ($missing as $s): ?><span class="s miss"><i class="fas fa-plus mr-1"></i><?= htmlspecialchars($s) ?></span><?php endforeach; ?>
         </div>

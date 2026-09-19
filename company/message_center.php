@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
+global $con;
 
 if (!isset($_SESSION['company_id'])) {
     header('Location: ../auth/login.php');
@@ -482,10 +483,17 @@ if ($active_conversation) {
                     <option value="">Select a user...</option>
                     <?php
                     $users_q = mysqli_query($con, "SELECT id, username FROM user_info WHERE status='active' ORDER BY username");
-                    while ($usr = mysqli_fetch_assoc($users_q)):
+                    if (!$users_q) {
+                        $users_q = mysqli_query($con, "SELECT id, username FROM user_info ORDER BY username");
+                    }
+                    if ($users_q):
+                        while ($usr = mysqli_fetch_assoc($users_q)):
                     ?>
                         <option value="<?php echo $usr['id']; ?>"><?php echo htmlspecialchars($usr['username']); ?></option>
-                    <?php endwhile; ?>
+                    <?php 
+                        endwhile; 
+                    endif;
+                    ?>
                 </select>
                 <input type="hidden" name="receiver_type" value="user">
             </div>

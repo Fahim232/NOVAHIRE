@@ -321,6 +321,14 @@ $user = mysqli_fetch_assoc($result);
             background: #229954;
         }
 
+        .btn-ai {
+            background: linear-gradient(135deg, #8b5cf6, #d946ef);
+        }
+
+        .btn-ai:hover {
+            background: linear-gradient(135deg, #7c3aed, #c026d3);
+        }
+
         @media print {
             body { padding: 0; background: white; }
             .print-controls { display: none; }
@@ -341,6 +349,7 @@ $user = mysqli_fetch_assoc($result);
 
     <div class="print-controls">
         <a href="seeker_dashboard.php" class="btn-fab btn-home" title="Back to Dashboard"><i class="fas fa-home"></i></a>
+        <a href="ai_cv_generator.php" class="btn-fab btn-ai" title="✨ Enhance / Edit with AI"><i class="fas fa-wand-magic-sparkles"></i></a>
         <button onclick="window.print()" class="btn-fab" title="Download PDF"><i class="fas fa-download"></i></button>
     </div>
 

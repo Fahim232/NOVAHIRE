@@ -16,7 +16,6 @@
 require_once __DIR__ . '/bootstrap.php';
 ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css?v=<?php echo time(); ?>">
-<link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/premium.css?v=<?php echo time(); ?>">
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.slim.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
@@ -24,10 +23,15 @@ require_once __DIR__ . '/bootstrap.php';
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.14/dist/js/bootstrap-select.min.js"></script>
 
 <script>
+window.APP_URL = '<?php echo BASE_URL; ?>';
 (function() {
-	const saved = localStorage.getItem('company-theme');
+	const saved = localStorage.getItem('theme') || localStorage.getItem('company-theme');
 	if (saved) {
 		document.documentElement.setAttribute('data-theme', saved);
+		if (document.body) {
+			document.body.setAttribute('data-theme', saved);
+			if (saved === 'dark') document.body.classList.add('dark-theme');
+		}
 	}
 })();
 </script>

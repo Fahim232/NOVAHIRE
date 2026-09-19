@@ -272,7 +272,7 @@ require_once __DIR__ . '/../includes/bootstrap.php';
                         // Send welcome email
                         send_welcome_email($email, $username);
                         
-                        echo "<script>alert('Account Created Successfully!'); window.location.href='login.php';</script>";
+                        echo "<script>alert('Account Created Successfully!'); window.location.href='" . BASE_URL . "/auth/login.php';</script>";
                         exit();
                     } else {
                         echo "<script>alert('Registration Failed! Please try again.');</script>";
@@ -288,8 +288,8 @@ require_once __DIR__ . '/../includes/bootstrap.php';
         <div class="reg-visual">
             <h2>Join Us</h2>
             <p>Start your professional journey with us today.</p>
-            <a href="login.php" class="reg-btn-outline">Sign In</a>
-            <a href="login.php" class="text-white small mt-4 opacity-75"><i class="fas fa-arrow-left mr-1"></i> Back to Login</a>
+            <a href="<?php echo BASE_URL; ?>/auth/login.php" class="reg-btn-outline">Sign In</a>
+            <a href="<?php echo BASE_URL; ?>/auth/login.php" class="text-white small mt-4 opacity-75"><i class="fas fa-arrow-left mr-1"></i> Back to Login</a>
         </div>
         
         <div class="reg-form-side">

@@ -12,6 +12,20 @@ if (!isset($con)) {
 }
 
 /**
+ * HTML escape helper
+ */
+if (!function_exists('esc')) {
+    function esc($str) {
+        return htmlspecialchars((string)$str, ENT_QUOTES, 'UTF-8');
+    }
+}
+if (!function_exists('e')) {
+    function e($str) {
+        return htmlspecialchars((string)$str, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+/**
  * Create a new notification
  */
 function create_notification($con, $recipient_type, $recipient_id, $sender_type, $sender_id, $title, $message, $notification_type = 'system', $related_type = null, $related_id = null) {
@@ -26,13 +40,15 @@ function create_notification($con, $recipient_type, $recipient_id, $sender_type,
  * Get unread notification count
  */
 function get_unread_count($con, $recipient_type, $recipient_id) {
+    if (!$con || !$recipient_id) return 0;
     $stmt = mysqli_prepare($con, "SELECT COUNT(*) as cnt FROM notifications WHERE recipient_type = ? AND recipient_id = ? AND is_read = 0");
+    if (!$stmt) return 0;
     mysqli_stmt_bind_param($stmt, "si", $recipient_type, $recipient_id);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     $row = mysqli_fetch_assoc($result);
     mysqli_stmt_close($stmt);
-    return intval($row['cnt']);
+    return intval($row['cnt'] ?? 0);
 }
 
 /**
@@ -108,13 +124,15 @@ function send_message($con, $sender_type, $sender_id, $receiver_type, $receiver_
  * Get unread message count
  */
 function get_unread_message_count($con, $recipient_type, $recipient_id) {
+    if (!$con || !$recipient_id) return 0;
     $stmt = mysqli_prepare($con, "SELECT COUNT(*) as cnt FROM messages WHERE receiver_type = ? AND receiver_id = ? AND is_read = 0 AND is_deleted_by_receiver = 0");
+    if (!$stmt) return 0;
     mysqli_stmt_bind_param($stmt, "si", $recipient_type, $recipient_id);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     $row = mysqli_fetch_assoc($result);
     mysqli_stmt_close($stmt);
-    return intval($row['cnt']);
+    return intval($row['cnt'] ?? 0);
 }
 
 /**
@@ -339,7 +357,10 @@ function get_activity_log($con, $user_type, $user_id, $limit = 50) {
  * Check if user/company can perform action based on subscription
  */
 function check_subscription_feature($con, $company_id, $feature) {
-    $plan = get_company_plan($con, $company_id);
+    if (!function_exists('get_company_plan') && file_exists(__DIR__ . '/payment.php')) {
+        require_once __DIR__ . '/payment.php';
+    }
+    $plan = function_exists('get_company_plan') ? get_company_plan($con, $company_id) : 'free';
     
     $features = [
         'featured_job'     => ['basic', 'pro', 'enterprise'],

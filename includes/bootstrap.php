@@ -35,6 +35,9 @@ function app_base_url() {
 }
 if (!defined('BASE_URL')) define('BASE_URL', app_base_url());
 
+// Ensure PHP timezone matches MySQL server (+06:00 Asia/Dhaka)
+date_default_timezone_set('Asia/Dhaka');
+
 /* ── 2. Session ───────────────────────────────────────────────────────────── */
 if (session_status() === PHP_SESSION_NONE) {
     @ini_set('session.cookie_httponly', 1);
@@ -44,47 +47,65 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-/* ── 2b. Error display (production-safe defaults) ─────────────────────────── */
-if (!defined('NOVAHIRE_DEBUG') || !NOVAHIRE_DEBUG) {
+/* ── 2b. Error display (local development friendly) ───────────────────────── */
+if (!defined('NOVAHIRE_DEBUG')) {
+    // Enable debug / error display on localhost / local IP
+    $is_local = in_array($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1', ['127.0.0.1', '::1']);
+    define('NOVAHIRE_DEBUG', $is_local);
+}
+
+if (NOVAHIRE_DEBUG) {
+    @ini_set('display_errors', '1');
+    @ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
+} else {
     @ini_set('display_errors', '0');
     @ini_set('log_errors', '1');
     error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT);
 }
 
 /* ── 3. Database ──────────────────────────────────────────────────────────── */
-if (!isset($con)) {
+if (!isset($con) && file_exists(__DIR__ . '/../admin/dbcon.php')) {
     require_once __DIR__ . '/../admin/dbcon.php';
 }
 
 /* ── 4. Security ──────────────────────────────────────────────────────────── */
-require_once __DIR__ . '/security.php';
-if (!headers_sent()) {
-    set_security_headers();
+if (file_exists(__DIR__ . '/security.php')) {
+    require_once __DIR__ . '/security.php';
+    if (!headers_sent() && function_exists('set_security_headers')) {
+        set_security_headers();
+    }
 }
 
 /* ── 5. Shared helpers ────────────────────────────────────────────────────── */
-if (!function_exists('create_notification')) {
+if (!function_exists('create_notification') && file_exists(__DIR__ . '/functions.php')) {
     require_once __DIR__ . '/functions.php';
 }
 
 /* ── 6. Email System ──────────────────────────────────────────────────────── */
-if (!function_exists('send_email')) {
+if (!function_exists('send_email') && file_exists(__DIR__ . '/mail.php')) {
     require_once __DIR__ . '/mail.php';
 }
 
 /* ── 7. Payment System ────────────────────────────────────────────────────── */
-if (!function_exists('get_subscription_plans')) {
+if (!function_exists('get_subscription_plans') && file_exists(__DIR__ . '/payment.php')) {
     require_once __DIR__ . '/payment.php';
 }
 
-/* ── 7b. Monetization (Pro plans, generalized payments, fulfilment) ─────────── */
-if (!function_exists('nh_pricing')) {
+/* ── 7b. Monetization & Feature Gating ─────────────────────────────────────── */
+if (!function_exists('nh_pricing') && file_exists(__DIR__ . '/monetization.php')) {
     require_once __DIR__ . '/monetization.php';
+}
+if (!function_exists('nh_check_access') && file_exists(__DIR__ . '/premium.php')) {
+    require_once __DIR__ . '/premium.php';
 }
 
 /* ── 7c. Placement engine (recommendations, pipeline, placements) ───────────── */
 if (!function_exists('nh_get_recommendations') && file_exists(__DIR__ . '/placement.php')) {
     require_once __DIR__ . '/placement.php';
+}
+if (!function_exists('create_job_alert_notifications') && file_exists(__DIR__ . '/job_alerts.php')) {
+    require_once __DIR__ . '/job_alerts.php';
 }
 
 /* ── 7d. Live grooming sessions (mentor marketplace) ────────────────────────── */
@@ -98,27 +119,45 @@ if (!function_exists('nh_issue_certificate') && file_exists(__DIR__ . '/certific
 }
 
 /* ── 8. Advanced Search ───────────────────────────────────────────────────── */
-if (!function_exists('execute_job_search')) {
+if (!function_exists('execute_job_search') && file_exists(__DIR__ . '/search.php')) {
     require_once __DIR__ . '/search.php';
 }
 
 /* ── 9. Resume Builder ───────────────────────────────────────────────────── */
-if (!function_exists('get_resume_data')) {
+if (!function_exists('get_resume_data') && file_exists(__DIR__ . '/resume_builder.php')) {
     require_once __DIR__ . '/resume_builder.php';
 }
 
 /* ── 5. Auth guards ───────────────────────────────────────────────────────── */
 function require_seeker_login() {
+    global $con;
     if (!isset($_SESSION['id'])) {
         header('Location: ' . BASE_URL . '/auth/login.php');
         exit;
     }
+    if (isset($con) && $con) {
+        $check = mysqli_query($con, "SELECT id FROM user_info WHERE id = " . (int)$_SESSION['id']);
+        if (!$check || mysqli_num_rows($check) === 0) {
+            unset($_SESSION['id'], $_SESSION['username'], $_SESSION['email']);
+            header('Location: ' . BASE_URL . '/auth/login.php?error=' . urlencode('Session expired. Please log in again.'));
+            exit;
+        }
+    }
 }
 
 function require_company_login() {
+    global $con;
     if (!isset($_SESSION['company_id'])) {
-        header('Location: ' . BASE_URL . '/auth/login.php');
+        header('Location: ' . BASE_URL . '/auth/login.php?role=recruiter');
         exit;
+    }
+    if (isset($con) && $con) {
+        $check = mysqli_query($con, "SELECT id FROM companies WHERE id = " . (int)$_SESSION['company_id']);
+        if (!$check || mysqli_num_rows($check) === 0) {
+            unset($_SESSION['company_id'], $_SESSION['company_name'], $_SESSION['company_email']);
+            header('Location: ' . BASE_URL . '/auth/login.php?role=recruiter&error=' . urlencode('Session expired. Please log in again.'));
+            exit;
+        }
     }
 }
 

@@ -1,237 +1,239 @@
 <?php
 /**
- * NovaHire — Placement Engine
- * ---------------------------------------------------------------------------
- * Turns the existing AI match score into a real placement funnel:
- *   • Personalised job recommendations for seekers
- *   • Application pipeline (applied → … → hired)
- *   • Ranked talent pool for companies
- *   • Placement records → basis for the placement success fee
+ * NovaHire — Placement & Recommendation Engine
+ * Handles smart job matching, applicant pipeline tracking, and placement fees.
  */
 
-if (defined('NOVAHIRE_PLACEMENT')) return;
-define('NOVAHIRE_PLACEMENT', true);
+if (defined('NOVAHIRE_PLACEMENT_LOADED')) return;
+define('NOVAHIRE_PLACEMENT_LOADED', true);
 
-// The rule-based matching engine (ai_match_profile_job / ai_rank_jobs) is loaded
-// lazily — only when a placement function that needs it actually runs — so we
-// don't pull the whole AI engine (+ its DB read) into every page via bootstrap.
-function nh_load_matching() {
-    if (!function_exists('ai_rank_jobs') && file_exists(__DIR__ . '/../ai/matching.php')) {
-        require_once __DIR__ . '/../ai/matching.php';
-    }
-    return function_exists('ai_rank_jobs');
+if (!isset($con)) {
+    require_once __DIR__ . '/bootstrap.php';
+}
+if (!function_exists('is_user_pro')) {
+    require_once __DIR__ . '/monetization.php';
 }
 
-/* ── Pipeline definition ───────────────────────────────────────────────────── */
+/**
+ * Check if a job posting has active featured / boost status
+ */
+function nh_is_job_featured($job) {
+    if (empty($job) || empty($job['is_featured'])) return false;
+    if (!empty($job['featured_until'])) {
+        return strtotime($job['featured_until']) > time();
+    }
+    return true;
+}
+
+/**
+ * List of pipeline stages
+ */
 function nh_pipeline_stages() {
     return ['applied', 'reviewed', 'shortlisted', 'interview', 'offered', 'hired', 'rejected'];
 }
 
+/**
+ * Human readable label for pipeline stages
+ */
 function nh_stage_label($stage) {
     $labels = [
-        'applied' => 'Applied', 'reviewed' => 'Reviewed', 'shortlisted' => 'Shortlisted',
-        'interview' => 'Interview', 'offered' => 'Offer', 'hired' => 'Hired', 'rejected' => 'Not selected',
+        'applied'     => 'Applied',
+        'reviewed'    => 'Reviewed',
+        'shortlisted' => 'Shortlisted',
+        'interview'   => 'Interviewing',
+        'offered'     => 'Offer Extended',
+        'hired'       => 'Hired',
+        'rejected'    => 'Rejected',
     ];
     return $labels[$stage] ?? ucfirst($stage);
 }
 
+/**
+ * Badge color for pipeline stages
+ */
 function nh_stage_color($stage) {
     $colors = [
-        'applied' => '#3b82f6', 'reviewed' => '#0ea5e9', 'shortlisted' => '#06b6d4',
-        'interview' => '#d97706', 'offered' => '#059669', 'hired' => '#059669', 'rejected' => '#dc2626',
+        'applied'     => '#64748b',
+        'reviewed'    => '#0284c7',
+        'shortlisted' => '#7c3aed',
+        'interview'   => '#d97706',
+        'offered'     => '#059669',
+        'hired'       => '#10b981',
+        'rejected'    => '#dc2626',
     ];
     return $colors[$stage] ?? '#64748b';
 }
 
-/* ── Recommendations ───────────────────────────────────────────────────────── */
-function nh_user_applied_job_ids($con, $user_id) {
-    $ids = [];
-    $stmt = mysqli_prepare($con, "SELECT job_id FROM job_applications WHERE user_id = ?");
-    mysqli_stmt_bind_param($stmt, "i", $user_id);
-    mysqli_stmt_execute($stmt);
-    $res = mysqli_stmt_get_result($stmt);
-    while ($r = mysqli_fetch_assoc($res)) $ids[] = (int)$r['job_id'];
-    mysqli_stmt_close($stmt);
-    return $ids;
-}
-
-function nh_get_active_jobs($con) {
-    $jobs = [];
-    $sql = "SELECT j.*, c.company_name, c.logo AS company_logo
-            FROM company_jobs j
-            JOIN companies c ON c.id = j.company_id
-            WHERE j.status = 'active'
-            ORDER BY j.is_featured DESC, j.posted_date DESC";
-    $res = @mysqli_query($con, $sql);
-    if ($res) while ($r = mysqli_fetch_assoc($res)) $jobs[] = $r;
-    return $jobs;
-}
-
 /**
- * Top job recommendations for a user, each with the full 'ai' match payload.
- * Already-applied jobs are flagged but still ranked.
+ * Advance or set an applicant's pipeline stage
  */
-function nh_get_recommendations($con, $user, $limit = 6) {
-    if (!nh_load_matching()) return [];
-    $jobs = nh_get_active_jobs($con);
-    if (empty($jobs)) return [];
-    $applied = nh_user_applied_job_ids($con, $user['id']);
-    $ranked = ai_rank_jobs($user, $jobs);
-    foreach ($ranked as &$j) $j['already_applied'] = in_array((int)$j['id'], $applied);
-    unset($j);
-    return array_slice($ranked, 0, $limit);
-}
-
-/* ── Pipeline management ───────────────────────────────────────────────────── */
-function nh_set_pipeline_stage($con, $application_id, $stage, $notify = true) {
-    if (!in_array($stage, nh_pipeline_stages())) return false;
-
-    // fetch application context for notifications / placement
-    $app = nh_get_application($con, $application_id);
-    if (!$app) return false;
+function nh_set_pipeline_stage($con, $application_id, $stage) {
+    if (!$con || !$application_id) return false;
+    $valid_stages = nh_pipeline_stages();
+    if (!in_array($stage, $valid_stages)) return false;
 
     $stmt = mysqli_prepare($con, "UPDATE job_applications SET pipeline_stage = ?, stage_updated_at = NOW() WHERE id = ?");
+    if (!$stmt) return false;
     mysqli_stmt_bind_param($stmt, "si", $stage, $application_id);
     $ok = mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
 
-    // keep the original application_status roughly in sync (non-breaking)
-    $legacy = in_array($stage, ['reviewed','shortlisted','rejected']) ? $stage
-            : ($stage === 'hired' || $stage === 'offered' ? 'shortlisted' : 'pending');
-    @mysqli_query($con, "UPDATE job_applications SET application_status = '" . mysqli_real_escape_string($con, $legacy) . "' WHERE id = " . (int)$application_id);
+    // If candidate is hired, record placement in placements table
+    if ($ok && $stage === 'hired' && nh_table_exists($con, 'placements')) {
+        $chk = mysqli_prepare($con, "SELECT id FROM placements WHERE application_id = ? LIMIT 1");
+        if ($chk) {
+            mysqli_stmt_bind_param($chk, "i", $application_id);
+            mysqli_stmt_execute($chk);
+            $existing = mysqli_fetch_assoc(mysqli_stmt_get_result($chk));
+            mysqli_stmt_close($chk);
 
-    if ($ok && $stage === 'hired') {
-        nh_record_placement($con, $application_id);
+            if (!$existing) {
+                // Fetch application details to create placement record
+                $app_stmt = mysqli_prepare($con, "SELECT ja.job_id, ja.user_id, ja.company_id, cj.salary_range FROM job_applications ja JOIN company_jobs cj ON ja.job_id = cj.id WHERE ja.id = ?");
+                if ($app_stmt) {
+                    mysqli_stmt_bind_param($app_stmt, "i", $application_id);
+                    mysqli_stmt_execute($app_stmt);
+                    $app_data = mysqli_fetch_assoc(mysqli_stmt_get_result($app_stmt));
+                    mysqli_stmt_close($app_stmt);
+
+                    if ($app_data) {
+                        $fee = 5000.00; // Standard placement commission
+                        $salary = 50000.00;
+                        if (!empty($app_data['salary_range']) && preg_match('/(\d+)/', str_replace(',', '', $app_data['salary_range']), $m)) {
+                            $salary = (float)$m[1];
+                        }
+                        $pins = mysqli_prepare($con, "INSERT INTO placements (application_id, job_id, user_id, company_id, salary_amount, placement_fee, fee_status, hired_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', CURDATE())");
+                        if ($pins) {
+                            mysqli_stmt_bind_param($pins, "iiiidd", $application_id, $app_data['job_id'], $app_data['user_id'], $app_data['company_id'], $salary, $fee);
+                            mysqli_stmt_execute($pins);
+                            mysqli_stmt_close($pins);
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    if ($ok && $notify && function_exists('create_notification')) {
-        $title = 'Application update: ' . nh_stage_label($stage);
-        $msg = 'Your application for <strong>' . htmlspecialchars($app['job_title']) . '</strong> at <strong>' . htmlspecialchars($app['company_name']) . '</strong> moved to <strong>' . nh_stage_label($stage) . '</strong>.';
-        create_notification($con, 'user', $app['user_id'], 'company', $app['company_id'], $title, $msg, 'application_status', 'job_applications', $application_id);
-    }
     return $ok;
 }
 
-function nh_get_application($con, $application_id) {
-    $sql = "SELECT a.*, j.job_title, j.salary_range, c.company_name
-            FROM job_applications a
-            JOIN company_jobs j ON j.id = a.job_id
-            JOIN companies c ON c.id = a.company_id
-            WHERE a.id = ? LIMIT 1";
-    $stmt = mysqli_prepare($con, $sql);
-    mysqli_stmt_bind_param($stmt, "i", $application_id);
-    mysqli_stmt_execute($stmt);
-    $res = mysqli_stmt_get_result($stmt);
-    $row = mysqli_fetch_assoc($res);
-    mysqli_stmt_close($stmt);
-    return $row ?: null;
-}
-
-/* ── Placements (success fee) ──────────────────────────────────────────────── */
-function nh_parse_salary($salary_range) {
-    if (!$salary_range) return null;
-    if (preg_match('/([\d,]{3,})/', $salary_range, $m)) {
-        $n = (float)str_replace(',', '', $m[1]);
-        return $n > 0 ? $n : null;
+/**
+ * Placement statistics for admin revenue or company dashboard
+ */
+function nh_placement_stats($con, $company_id = null) {
+    if (!$con || !nh_table_exists($con, 'placements')) {
+        return ['total' => 0, 'fee_pending' => 0, 'fee_paid' => 0, 'revenue' => 0.0];
     }
-    return null;
-}
 
-function nh_record_placement($con, $application_id) {
-    $app = nh_get_application($con, $application_id);
-    if (!$app) return false;
-
-    // already recorded?
-    $chk = mysqli_prepare($con, "SELECT id FROM placements WHERE application_id = ? LIMIT 1");
-    mysqli_stmt_bind_param($chk, "i", $application_id);
-    mysqli_stmt_execute($chk);
-    $exists = mysqli_fetch_assoc(mysqli_stmt_get_result($chk));
-    mysqli_stmt_close($chk);
-    if ($exists) return true;
-
-    $pricing = nh_pricing();
-    $salary  = nh_parse_salary($app['salary_range']);
-    // Flat success fee keeps the demo predictable; salary stored for reporting.
-    $fee = $pricing['placement_fee_flat'];
-
-    $stmt = mysqli_prepare($con, "INSERT INTO placements (application_id, job_id, user_id, company_id, salary_amount, placement_fee, fee_status, hired_at, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', CURDATE(), NOW())");
-    mysqli_stmt_bind_param($stmt, "iiiidd", $application_id, $app['job_id'], $app['user_id'], $app['company_id'], $salary, $fee);
-    $ok = mysqli_stmt_execute($stmt);
-    mysqli_stmt_close($stmt);
-
-    if ($ok && function_exists('create_notification')) {
-        create_notification($con, 'user', $app['user_id'], 'company', $app['company_id'],
-            '🎉 You got hired!', 'Congratulations! You were hired for <strong>' . htmlspecialchars($app['job_title']) . '</strong> at <strong>' . htmlspecialchars($app['company_name']) . '</strong>.', 'application_status', 'placements', $application_id);
+    $where = $company_id ? "WHERE company_id = " . (int)$company_id : "";
+    $sql = "SELECT COUNT(*) as total, 
+                   SUM(CASE WHEN fee_status = 'pending' THEN 1 ELSE 0 END) as fee_pending, 
+                   SUM(CASE WHEN fee_status = 'paid' THEN 1 ELSE 0 END) as fee_paid, 
+                   COALESCE(SUM(CASE WHEN fee_status = 'paid' THEN placement_fee ELSE 0 END), 0) as revenue 
+            FROM placements $where";
+    $r = @mysqli_query($con, $sql);
+    if ($r && ($row = mysqli_fetch_assoc($r))) {
+        return [
+            'total'       => (int)($row['total'] ?? 0),
+            'fee_pending' => (int)($row['fee_pending'] ?? 0),
+            'fee_paid'    => (int)($row['fee_paid'] ?? 0),
+            'revenue'     => (float)($row['revenue'] ?? 0.0)
+        ];
     }
-    return $ok;
+
+    return ['total' => 0, 'fee_pending' => 0, 'fee_paid' => 0, 'revenue' => 0.0];
 }
 
-/* ── Company talent pool (ranked applicants) ───────────────────────────────── */
+/**
+ * Retrieve and rank candidate talent pool for a company
+ */
 function nh_company_talent_pool($con, $company_id) {
-    $sql = "SELECT a.id AS application_id, a.pipeline_stage, a.quiz_score, a.applied_date,
-                   u.id AS user_id, u.username, u.email, u.user_skills, u.user_degree,
-                   u.experience, u.about_me, u.profile,
-                   j.id AS job_id, j.job_title, j.job_category, j.skills_required,
-                   j.requirements, j.responsibilities, j.job_description, j.experience_required
-            FROM job_applications a
-            JOIN user_info u ON u.id = a.user_id
-            JOIN company_jobs j ON j.id = a.job_id
-            WHERE a.company_id = ?
-            ORDER BY a.applied_date DESC";
-    $stmt = mysqli_prepare($con, $sql);
+    if (!$con || !$company_id) return [];
+    
+    $query = "SELECT ja.id as application_id, ja.job_id, ja.user_id, ja.quiz_score, ja.pipeline_stage, ja.applied_date,
+                     cj.job_title, cj.skills_required,
+                     ui.username, ui.user_skills, ui.profile
+              FROM job_applications ja
+              JOIN company_jobs cj ON ja.job_id = cj.id
+              JOIN user_info ui ON ja.user_id = ui.id
+              WHERE ja.company_id = ?
+              ORDER BY ja.id DESC";
+
+    $stmt = mysqli_prepare($con, $query);
+    if (!$stmt) return [];
     mysqli_stmt_bind_param($stmt, "i", $company_id);
     mysqli_stmt_execute($stmt);
     $res = mysqli_stmt_get_result($stmt);
+    $pool = [];
 
-    $rows = [];
-    while ($r = mysqli_fetch_assoc($res)) {
-        if (nh_load_matching()) {
-            $ai = ai_match_profile_job($r, $r); // row carries both user_* and job_* fields
-            $r['match_score'] = $ai['score'];
-        } else {
-            $r['match_score'] = 0;
+    while ($row = mysqli_fetch_assoc($res)) {
+        // Skill matching score calculation
+        $u_skills = array_filter(array_map('trim', explode(',', strtolower((string)$row['user_skills']))));
+        $j_skills = array_filter(array_map('trim', explode(',', strtolower((string)$row['skills_required']))));
+        
+        $match_score = 70; // baseline
+        if (!empty($j_skills)) {
+            $matched = array_intersect($u_skills, $j_skills);
+            $match_score = round((count($matched) / max(1, count($j_skills))) * 100);
         }
-        $r['is_pro'] = function_exists('is_user_pro') ? is_user_pro($con, $r['user_id']) : false;
-        $r['grooming_passed'] = nh_user_passed_count($con, $r['user_id']);
-        $rows[] = $r;
+        if ($row['quiz_score'] !== null) {
+            $match_score = round(($match_score * 0.6) + ((int)$row['quiz_score'] * 0.4));
+        }
+
+        $row['match_score'] = $match_score;
+        $row['is_pro'] = is_user_pro($con, $row['user_id']);
+        $row['grooming_passed'] = 1; // placeholder for verified grooming
+        $pool[] = $row;
     }
     mysqli_stmt_close($stmt);
 
-    // Rank: Pro first, then match score, then quiz score
-    usort($rows, function ($a, $b) {
-        if ($a['is_pro'] !== $b['is_pro']) return $b['is_pro'] <=> $a['is_pro'];
-        if ($a['match_score'] !== $b['match_score']) return $b['match_score'] <=> $a['match_score'];
-        return (int)$b['quiz_score'] <=> (int)$a['quiz_score'];
+    // Sort by match_score descending, pro users given priority boost
+    usort($pool, function($a, $b) {
+        $scoreA = $a['match_score'] + ($a['is_pro'] ? 5 : 0);
+        $scoreB = $b['match_score'] + ($b['is_pro'] ? 5 : 0);
+        return $scoreB <=> $scoreA;
     });
-    return $rows;
+
+    return $pool;
 }
 
-function nh_user_passed_count($con, $user_id) {
-    $stmt = mysqli_prepare($con, "SELECT COUNT(*) c FROM user_quiz_status WHERE user_id = ? AND status = 'passed'");
-    mysqli_stmt_bind_param($stmt, "i", $user_id);
-    mysqli_stmt_execute($stmt);
-    $row = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
-    mysqli_stmt_close($stmt);
-    return (int)($row['c'] ?? 0);
-}
+/**
+ * AI-powered Job Recommendations based on candidate skills
+ */
+function nh_get_recommendations($con, $user, $limit = 10) {
+    if (!$con) return [];
 
-/* ── Stats (for company + admin dashboards) ────────────────────────────────── */
-function nh_placement_stats($con, $company_id = null) {
-    $where = $company_id ? (" WHERE company_id = " . (int)$company_id) : "";
-    $stats = ['total' => 0, 'fee_pending' => 0, 'fee_paid' => 0, 'revenue' => 0.0];
-    $r = @mysqli_query($con, "SELECT COUNT(*) total,
-                SUM(fee_status='pending') fee_pending,
-                SUM(fee_status='paid') fee_paid,
-                COALESCE(SUM(CASE WHEN fee_status='paid' THEN placement_fee ELSE 0 END),0) revenue
-             FROM placements" . $where);
-    if ($r && ($row = mysqli_fetch_assoc($r))) {
-        $stats = [
-            'total' => (int)$row['total'],
-            'fee_pending' => (int)$row['fee_pending'],
-            'fee_paid' => (int)$row['fee_paid'],
-            'revenue' => (float)$row['revenue'],
-        ];
+    $user_skills_raw = (string)($user['user_skills'] ?? '');
+    $user_skills = array_filter(array_map('trim', explode(',', strtolower($user_skills_raw))));
+    if (empty($user_skills)) return [];
+
+    $sql = "SELECT cj.*, c.company_name, c.logo as company_logo, c.company_address as company_location
+            FROM company_jobs cj
+            LEFT JOIN companies c ON cj.company_id = c.id
+            WHERE cj.status = 'active'
+            ORDER BY cj.is_featured DESC, cj.id DESC LIMIT 50";
+
+    $res = @mysqli_query($con, $sql);
+    if (!$res) return [];
+
+    // Load AI matching engine
+    require_once __DIR__ . '/../ai/matching.php';
+
+    $scored_jobs = [];
+    while ($job = mysqli_fetch_assoc($res)) {
+        $ai_data = ai_match_profile_job($user, $job);
+
+        // Boost score if featured
+        if (!empty($job['is_featured'])) {
+            $ai_data['score'] = min(100, $ai_data['score'] + 5);
+        }
+
+        $job['ai'] = $ai_data;
+        $scored_jobs[] = $job;
     }
-    return $stats;
+
+    // Sort by AI score descending
+    usort($scored_jobs, fn($a, $b) => $b['ai']['score'] <=> $a['ai']['score']);
+
+    return array_slice($scored_jobs, 0, $limit);
 }
-?>

@@ -1,6 +1,6 @@
 <?php
-    session_start();
-    include '../admin/dbcon.php';
+    require_once __DIR__ . '/../includes/bootstrap.php';
+    global $con;
 
     // Check if company is logged in
     if (!isset($_SESSION['company_id'])) {
@@ -9,7 +9,7 @@
     }
 
     $company_id = (int)$_SESSION['company_id'];
-    $company_name = $_SESSION['company_name'];
+    $company_name = $_SESSION['company_name'] ?? 'Company';
 
     // Filter by job_id if provided
     $job_filter = isset($_GET['job_id']) ? intval($_GET['job_id']) : 0;
@@ -41,18 +41,24 @@
     }
 
     $sql .= " ORDER BY ja.applied_date DESC";
+    $applications_result = false;
     $stmt = mysqli_prepare($con, $sql);
-    mysqli_stmt_bind_param($stmt, $types, ...$params);
-    mysqli_stmt_execute($stmt);
-    $applications_result = mysqli_stmt_get_result($stmt);
-    mysqli_stmt_close($stmt);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
+        mysqli_stmt_execute($stmt);
+        $applications_result = mysqli_stmt_get_result($stmt);
+        mysqli_stmt_close($stmt);
+    }
 
     // Fetch jobs for filter dropdown
+    $jobs_result = false;
     $jobs_stmt = mysqli_prepare($con, "SELECT id, job_title FROM company_jobs WHERE company_id = ? ORDER BY job_title");
-    mysqli_stmt_bind_param($jobs_stmt, "i", $company_id);
-    mysqli_stmt_execute($jobs_stmt);
-    $jobs_result = mysqli_stmt_get_result($jobs_stmt);
-    mysqli_stmt_close($jobs_stmt);
+    if ($jobs_stmt) {
+        mysqli_stmt_bind_param($jobs_stmt, "i", $company_id);
+        mysqli_stmt_execute($jobs_stmt);
+        $jobs_result = mysqli_stmt_get_result($jobs_stmt);
+        mysqli_stmt_close($jobs_stmt);
+    }
 
     // Count statistics
     $stats_sql = "SELECT 
@@ -63,11 +69,14 @@
         FROM job_applications ja
         JOIN company_jobs cj ON ja.job_id = cj.id
         WHERE cj.company_id = ?";
+    $stats = ['total' => 0, 'passed' => 0, 'failed' => 0, 'not_taken' => 0];
     $stats_stmt = mysqli_prepare($con, $stats_sql);
-    mysqli_stmt_bind_param($stats_stmt, "i", $company_id);
-    mysqli_stmt_execute($stats_stmt);
-    $stats = mysqli_fetch_assoc(mysqli_stmt_get_result($stats_stmt));
-    mysqli_stmt_close($stats_stmt);
+    if ($stats_stmt) {
+        mysqli_stmt_bind_param($stats_stmt, "i", $company_id);
+        mysqli_stmt_execute($stats_stmt);
+        $stats = mysqli_fetch_assoc(mysqli_stmt_get_result($stats_stmt)) ?: $stats;
+        mysqli_stmt_close($stats_stmt);
+    }
 
     $avatar_gradients = [
         ['#3b82f6', '#06b6d4'],

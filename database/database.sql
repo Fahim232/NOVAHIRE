@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS `jobregistration` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+
+use projects;
 -- ============================================================
 -- USER INFO (main user accounts)
 -- ============================================================
@@ -68,6 +70,8 @@ CREATE TABLE IF NOT EXISTS `user_info` (
   `user_skills` varchar(255) NOT NULL,
   `profile` varchar(255) DEFAULT NULL,
   `auto_cv_path` varchar(255) DEFAULT NULL,
+  `status` enum('active','inactive','suspended') NOT NULL DEFAULT 'active',
+  `is_pro` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -644,5 +648,76 @@ INSERT INTO `notifications` (`recipient_type`, `recipient_id`, `sender_type`, `s
 INSERT INTO `messages` (`sender_type`, `sender_id`, `receiver_type`, `receiver_id`, `subject`, `message`, `is_read`, `related_job_id`, `created_at`) VALUES
 ('company', 1, 'user', 1, 'Regarding Your Application', 'We have reviewed your application and would like to schedule an interview. Please let us know your availability.', 0, 1, NOW()),
 ('user', 1, 'company', 1, 'Re: Regarding Your Application', 'Thank you for considering my application. I am available any day next week between 10 AM and 4 PM.', 1, 1, DATE_SUB(NOW(), INTERVAL 1 DAY));
+
+-- ============================================================
+-- COMPANY REVIEWS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `company_reviews` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `company_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `rating` int(11) DEFAULT 5,
+  `work_env` int(11) DEFAULT 5,
+  `management` int(11) DEFAULT 5,
+  `salary` int(11) DEFAULT 5,
+  `work_life` int(11) DEFAULT 5,
+  `career_growth` int(11) DEFAULT 5,
+  `title` varchar(255) DEFAULT NULL,
+  `review` text DEFAULT NULL,
+  `pros` text DEFAULT NULL,
+  `cons` text DEFAULT NULL,
+  `is_anonymous` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `company_id` (`company_id`),
+  KEY `user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- JOB ALERTS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `job_alerts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `keyword` varchar(255) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `job_type` varchar(50) DEFAULT NULL,
+  `min_salary` int(11) DEFAULT 0,
+  `frequency` enum('daily','weekly','instant') DEFAULT 'daily',
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- BLOG POSTS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `blog_posts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) NOT NULL,
+  `slug` varchar(255) NOT NULL,
+  `excerpt` text DEFAULT NULL,
+  `content` longtext DEFAULT NULL,
+  `category` varchar(100) NOT NULL DEFAULT 'Career Advice',
+  `featured_image` varchar(255) DEFAULT NULL,
+  `author_id` int(11) DEFAULT NULL,
+  `status` enum('draft','published','archived') NOT NULL DEFAULT 'published',
+  `views_count` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `slug` (`slug`),
+  KEY `category` (`category`),
+  KEY `status` (`status`),
+  KEY `created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `blog_posts` (`title`, `slug`, `category`, `excerpt`, `content`, `views_count`, `status`, `created_at`) VALUES
+('Top 10 Resume Mistakes to Avoid in 2026', 'top-10-resume-mistakes-2026', 'Resume Tips', 'Discover the most common mistakes job seekers make on their resumes and learn modern formatting tricks to pass Applicant Tracking Systems (ATS) with flying colors.', '<p>Your resume is often your first introduction to potential employers, and in a competitive market, first impressions count. Many talented candidates get screened out by Applicant Tracking Systems (ATS) before human recruiters ever lay eyes on their CV.</p><h3>1. Overcomplicating Visual Layouts</h3><p>While creative layouts might look appealing, complex multi-column designs and graphics confuse parsing algorithms. Stick to clean, single-column or clean two-column structures with clear semantic headings.</p><h3>2. Omitting Measurable Impact</h3><p>Instead of listing tasks like \"Responsible for writing code\", quantify your achievements: \"Engineered scalable REST APIs reducing server response times by 35% across 200,000 monthly active users\".</p>', 1420, 'published', NOW()),
+('How to Ace Your Technical and Behavioral Interviews', 'how-to-ace-technical-interview', 'Interview Tips', 'A comprehensive guide combining the STAR framework with technical problem-solving frameworks to leave an unforgettable impression in interviews.', '<p>Interviewing is a skill that improves dramatically with deliberate practice. Whether preparing for live coding challenges or architectural deep dives, structure is your greatest asset.</p><h3>The STAR Method for Behavioral Questions</h3><p>When asked situational questions like \"Tell me about a time you resolved a critical production bug\", structure your response into Situation, Task, Action, and Result.</p>', 980, 'published', NOW()),
+('Salary Negotiation: Strategies That Actually Work', 'salary-negotiation-strategies', 'Salary', 'Negotiating your salary does not have to be awkward. Learn data-driven negotiation techniques to maximize your total compensation package with confidence.', '<p>Research shows that candidates who negotiate their starting offers earn substantially more over the course of their careers. Yet many applicants feel hesitant or unprepared to ask for what they deserve.</p><h3>1. Benchmark With Local Market Realities</h3><p>Gather reliable salary benchmarks for your industry, role, and level of experience.</p>', 760, 'published', NOW()),
+('Remote Work Best Practices for Modern Software Engineers', 'remote-work-best-practices', 'Remote Work', 'Master asynchronous communication, work-life boundaries, and collaborative tooling to thrive in distributed and hybrid engineering teams.', '<p>Remote and hybrid work arrangements have become standard across high-performing tech organizations. Success in distributed environments requires intentional communication and disciplined personal routines.</p>', 610, 'published', NOW());
 
 COMMIT;

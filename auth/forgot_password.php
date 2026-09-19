@@ -269,7 +269,7 @@ if (isset($_POST['send_code'])) {
             <?php endif; ?>
 
             <div class="back-link">
-                <a href="login.php"><i class="fas fa-arrow-left mr-2"></i>Back to Login</a>
+                <a href="<?php echo BASE_URL; ?>/auth/login.php"><i class="fas fa-arrow-left mr-2"></i>Back to Login</a>
             </div>
         </div>
     </div>

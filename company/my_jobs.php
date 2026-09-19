@@ -1,6 +1,6 @@
 <?php
-    session_start();
-    include '../admin/dbcon.php';
+    require_once __DIR__ . '/../includes/bootstrap.php';
+    global $con;
 
     // Check if company is logged in
     if (!isset($_SESSION['company_id'])) {
@@ -45,15 +45,17 @@
     $stats = ['total' => 0, 'active' => 0, 'draft' => 0, 'closed' => 0, 'applications' => 0];
     $stats_q = "SELECT status, COUNT(*) as c FROM company_jobs WHERE company_id = $company_id GROUP BY status";
     $stats_r = mysqli_query($con, $stats_q);
-    while ($s = mysqli_fetch_assoc($stats_r)) {
-        $stats['total'] += $s['c'];
-        if ($s['status'] == 'active') $stats['active'] = $s['c'];
-        elseif ($s['status'] == 'draft') $stats['draft'] = $s['c'];
-        elseif ($s['status'] == 'closed') $stats['closed'] = $s['c'];
+    if ($stats_r) {
+        while ($s = mysqli_fetch_assoc($stats_r)) {
+            $stats['total'] += $s['c'];
+            if ($s['status'] == 'active') $stats['active'] = $s['c'];
+            elseif ($s['status'] == 'draft') $stats['draft'] = $s['c'];
+            elseif ($s['status'] == 'closed') $stats['closed'] = $s['c'];
+        }
     }
     $apps_q = "SELECT COUNT(*) as c FROM job_applications ja JOIN company_jobs cj ON ja.job_id = cj.id WHERE cj.company_id = $company_id";
     $apps_r = mysqli_query($con, $apps_q);
-    $stats['applications'] = intval(mysqli_fetch_assoc($apps_r)['c']);
+    $stats['applications'] = ($apps_r && ($ar = mysqli_fetch_assoc($apps_r))) ? intval($ar['c']) : 0;
 
     $category_styles = [
         'Java'        => ['icon' => 'fa-brands fa-java', 'color' => '#f89820'],
@@ -244,6 +246,8 @@
         /* ── Job cards ── */
         .mj-list { display: flex; flex-direction: column; gap: 18px; }
         .job-card {
+            position: relative;
+            z-index: 1;
             background: var(--mj-card);
             border: 1px solid var(--mj-border);
             border-radius: 18px;
@@ -259,10 +263,20 @@
             transform: translateY(-3px);
             border-color: var(--mj-primary);
             box-shadow: 0 20px 40px rgba(79, 70, 229, 0.16);
+            z-index: 2;
+        }
+        /* Elevate card when dropdown is open or focused so menu floats above subsequent cards */
+        .job-card:focus-within {
+            z-index: 25;
+        }
+        .job-card:has(.dropdown.show),
+        .job-card:has(.status-dd.show),
+        .job-card.dropdown-open {
+            z-index: 60 !important;
         }
         @keyframes mjIn {
             from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
+            to { opacity: 1; transform: none; }
         }
 
         .job-cat-ico {
@@ -342,13 +356,27 @@
         .act-del { background: rgba(239, 68, 68, 0.10); border-color: rgba(239, 68, 68, 0.35); color: #dc2626; }
         .act-del:hover { background: #dc2626; color: #fff; }
 
+        .status-dd {
+            position: relative;
+        }
+        .status-dd.show {
+            z-index: 1050;
+        }
         .status-dd .dropdown-menu {
             background: var(--mj-card);
             border: 1px solid var(--mj-border);
-            border-radius: 12px;
-            box-shadow: var(--mj-shadow);
-            padding: 6px;
-            min-width: 160px;
+            border-radius: 14px;
+            box-shadow: 0 14px 35px rgba(15, 23, 42, 0.18);
+            padding: 7px;
+            min-width: 168px;
+            margin-top: 6px;
+            z-index: 1050 !important;
+        }
+        [data-theme="dark"] .status-dd .dropdown-menu {
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+        }
+        .status-dd form {
+            margin: 0;
         }
         .status-dd .dropdown-item {
             border-radius: 8px;
@@ -356,8 +384,27 @@
             font-size: 0.85rem;
             font-weight: 600;
             color: var(--mj-text);
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease;
         }
-        .status-dd .dropdown-item:hover { background: var(--mj-soft); color: var(--mj-primary); }
+        .status-dd .dropdown-item:hover {
+            background: var(--mj-soft);
+            color: var(--mj-primary);
+        }
+        .status-dd .dropdown-item.is-current {
+            background: rgba(26, 86, 219, 0.08);
+            font-weight: 700;
+        }
+        [data-theme="dark"] .status-dd .dropdown-item.is-current {
+            background: rgba(6, 182, 212, 0.12);
+        }
 
         /* ── Empty states ── */
         .mj-empty {
@@ -523,24 +570,33 @@
                                 </a>
                             <?php endif; ?>
                             <div class="dropdown status-dd">
-                                <button class="act-btn act-status dropdown-toggle" type="button" data-toggle="dropdown">
+                                <button class="act-btn act-status dropdown-toggle" type="button" data-toggle="dropdown" data-boundary="viewport">
                                     <i class="fas fa-sliders"></i>Status
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-right">
                                     <form method="POST" action="">
                                         <input type="hidden" name="job_id" value="<?php echo $job['id']; ?>">
                                         <input type="hidden" name="status" value="active">
-                                        <button type="submit" name="update_status" value="active" class="dropdown-item"><i class="fas fa-circle text-success mr-2" style="font-size:.55rem;"></i>Active</button>
+                                        <button type="submit" name="update_status" value="active" class="dropdown-item <?php echo $status === 'active' ? 'is-current' : ''; ?>">
+                                            <span><i class="fas fa-circle text-success mr-2" style="font-size:.55rem;"></i>Active</span>
+                                            <?php if ($status === 'active'): ?><i class="fas fa-check text-success ml-2" style="font-size:0.75rem;"></i><?php endif; ?>
+                                        </button>
                                     </form>
                                     <form method="POST" action="">
                                         <input type="hidden" name="job_id" value="<?php echo $job['id']; ?>">
                                         <input type="hidden" name="status" value="draft">
-                                        <button type="submit" name="update_status" value="draft" class="dropdown-item"><i class="fas fa-circle text-warning mr-2" style="font-size:.55rem;"></i>Draft</button>
+                                        <button type="submit" name="update_status" value="draft" class="dropdown-item <?php echo $status === 'draft' ? 'is-current' : ''; ?>">
+                                            <span><i class="fas fa-circle text-warning mr-2" style="font-size:.55rem;"></i>Draft</span>
+                                            <?php if ($status === 'draft'): ?><i class="fas fa-check text-warning ml-2" style="font-size:0.75rem;"></i><?php endif; ?>
+                                        </button>
                                     </form>
                                     <form method="POST" action="">
                                         <input type="hidden" name="job_id" value="<?php echo $job['id']; ?>">
                                         <input type="hidden" name="status" value="closed">
-                                        <button type="submit" name="update_status" value="closed" class="dropdown-item"><i class="fas fa-circle text-danger mr-2" style="font-size:.55rem;"></i>Closed</button>
+                                        <button type="submit" name="update_status" value="closed" class="dropdown-item <?php echo $status === 'closed' ? 'is-current' : ''; ?>">
+                                            <span><i class="fas fa-circle text-danger mr-2" style="font-size:.55rem;"></i>Closed</span>
+                                            <?php if ($status === 'closed'): ?><i class="fas fa-check text-danger ml-2" style="font-size:0.75rem;"></i><?php endif; ?>
+                                        </button>
                                     </form>
                                 </div>
                             </div>
@@ -605,6 +661,14 @@
             const noMatch = document.getElementById('mjNoMatch');
             if (noMatch) noMatch.style.display = visible === 0 ? '' : 'none';
         }
+
+        // Dynamically elevate card z-index so the dropdown is never clipped by or hidden behind subsequent cards
+        $(document).on('show.bs.dropdown', '.status-dd', function () {
+            $(this).closest('.job-card').addClass('dropdown-open').css('z-index', 60);
+        });
+        $(document).on('hidden.bs.dropdown', '.status-dd', function () {
+            $(this).closest('.job-card').removeClass('dropdown-open').css('z-index', '');
+        });
     </script>
 </body>
 </html>

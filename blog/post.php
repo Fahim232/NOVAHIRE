@@ -1,15 +1,20 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 global $con;
 >>>>>>> 2202f55 (blog)
+=======
+global $con;
+>>>>>>> dev-admin-ai
 
 $slug = trim($_GET['slug'] ?? '');
 $id = intval($_GET['id'] ?? 0);
 
 if (!$slug && !$id) { header('Location: index.php'); exit; }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 if ($slug) {
     $stmt = mysqli_prepare($con, "SELECT * FROM blog_posts WHERE (slug = ? OR id = ?) AND status = 'published'");
@@ -28,6 +33,8 @@ mysqli_query($con, "UPDATE blog_posts SET views_count = views_count + 1 WHERE id
 $post['views_count']++;
 
 =======
+=======
+>>>>>>> dev-admin-ai
 $post = null;
 if ($slug) {
     $stmt = mysqli_prepare($con, "SELECT * FROM blog_posts WHERE (slug = ? OR id = ?) AND status = 'published'");
@@ -59,18 +66,24 @@ if (!$post) { header('Location: index.php'); exit; }
 $post['views_count'] = (int)($post['views_count'] ?? 0) + 1;
 
 $related = [];
+<<<<<<< HEAD
 >>>>>>> 2202f55 (blog)
+=======
+>>>>>>> dev-admin-ai
 $related_stmt = mysqli_prepare($con, "SELECT p.id, p.title, p.slug, p.excerpt, p.featured_image, p.category, p.created_at, p.views_count,
         COALESCE(ui.username, 'NovaHire Team') AS author_name
         FROM blog_posts p
         LEFT JOIN user_info ui ON ui.id = p.author_id
         WHERE p.category = ? AND p.id != ? AND p.status = 'published' ORDER BY p.created_at DESC LIMIT 3");
 <<<<<<< HEAD
+<<<<<<< HEAD
 mysqli_stmt_bind_param($related_stmt, "si", $post['category'], $post['id']);
 mysqli_stmt_execute($related_stmt);
 $related = mysqli_fetch_all(mysqli_stmt_get_result($related_stmt), MYSQLI_ASSOC);
 mysqli_stmt_close($related_stmt);
 =======
+=======
+>>>>>>> dev-admin-ai
 if ($related_stmt) {
     mysqli_stmt_bind_param($related_stmt, "si", $post['category'], $post['id']);
     mysqli_stmt_execute($related_stmt);
@@ -80,7 +93,10 @@ if ($related_stmt) {
     }
     mysqli_stmt_close($related_stmt);
 }
+<<<<<<< HEAD
 >>>>>>> 2202f55 (blog)
+=======
+>>>>>>> dev-admin-ai
 
 $cat_icons = [
     'Career Advice' => 'fa-compass', 'Interview Tips' => 'fa-comments', 'Resume Tips' => 'fa-file-alt',

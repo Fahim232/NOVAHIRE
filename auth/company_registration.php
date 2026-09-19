@@ -2,7 +2,8 @@
 /**
  * Employer / Company Registration Portal
  */
-require_once __DIR__ . '/includes/bootstrap.php';
+require_once __DIR__ . '/../includes/bootstrap.php';
+global $con;
 
 if (isset($_POST['register'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -43,7 +44,7 @@ if (isset($_POST['register']) && !isset($error)) {
         $hashed_password = password_hash($password, PASSWORD_BCRYPT);
         $logo_name = null;
         if (isset($_FILES['logo']) && $_FILES['logo']['error'] !== UPLOAD_ERR_NO_FILE) {
-            $up = nh_store_upload($_FILES['logo'], __DIR__ . '/uploads/company_logos', 'image', 'logo');
+            $up = nh_store_upload($_FILES['logo'], dirname(__DIR__) . '/uploads/company_logos', 'image', 'logo');
             if ($up['ok']) {
                 $logo_name = $up['filename'];
             } else {
@@ -58,7 +59,7 @@ if (isset($_POST['register']) && !isset($error)) {
             if (mysqli_stmt_execute($ins_stmt)) {
                 $success_msg = 'Company registered successfully!';
                 // Send welcome email
-                require_once __DIR__ . '/includes/mail.php';
+                require_once dirname(__DIR__) . '/includes/mail.php';
                 send_company_welcome_email($email, $company_name);
             } else {
                 $error_msg = 'Registration failed! Please try again.';
@@ -73,7 +74,7 @@ if (isset($_POST['register']) && !isset($error)) {
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register Company | NovaHire</title>
-    <?php include 'includes/links.php'; ?>
+    <?php include '../includes/links.php'; ?>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
     :root{--cr-primary:#3b82f6;--cr-secondary:#06b6d4;--cr-accent:#0ea5e9;--cr-grad:linear-gradient(135deg,#3b82f6,#06b6d4 50%,#0ea5e9);--cr-text:#1e293b;--cr-muted:#64748b;--cr-border:#e2e8f0;--cr-bg:#f8fafc;--cr-card:#fff;--cr-success:#059669;--cr-danger:#dc2626;--cr-radius:16px;}
@@ -91,7 +92,7 @@ if (isset($_POST['register']) && !isset($error)) {
     .cr-brand-logo{display:flex;align-items:center;gap:12px;margin-bottom:40px;}
     .cr-brand-logo-icon{width:48px;height:48px;border-radius:14px;background:var(--cr-grad);display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fff;box-shadow:0 6px 20px rgba(59,130,246,.4);}
     .cr-brand-logo-text{font-size:1.4rem;font-weight:800;letter-spacing:-.5px;}
-    .cr-brand-logo-text span{background:var(--cr-grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .cr-brand-logo-text span{background:var(--cr-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
     .cr-brand h1{font-size:2.4rem;font-weight:800;line-height:1.15;margin-bottom:16px;letter-spacing:-.5px;}
     .cr-brand h1 i{font-size:1.6rem;margin-right:8px;opacity:.8;}
     .cr-brand p{font-size:1.05rem;opacity:.75;line-height:1.7;margin-bottom:40px;max-width:440px;}
@@ -221,10 +222,10 @@ if (isset($_POST['register']) && !isset($error)) {
         <!-- Left Branding Panel -->
         <div class="cr-brand">
             <div class="cr-brand-content">
-                <div class="cr-brand-logo">
+                <a href="<?php echo BASE_URL; ?>/index.php" style="text-decoration:none;color:inherit;" class="cr-brand-logo">
                     <div class="cr-brand-logo-icon"><i class="fas fa-layer-group"></i></div>
                     <div class="cr-brand-logo-text">Nova<span>Hire</span></div>
-                </div>
+                </a>
                 <h1><i class="fas fa-building"></i>Register Your Company</h1>
                 <p>Create an employer account and start hiring the best talent. Post jobs, review applications, and build your dream team.</p>
 
@@ -285,7 +286,7 @@ if (isset($_POST['register']) && !isset($error)) {
                 <?php endif; ?>
                 <?php if (isset($success_msg)): ?>
                     <div class="cr-alert success"><i class="fas fa-check-circle"></i><?php echo $success_msg; ?> Redirecting... <i class="fas fa-spinner fa-spin ml-2"></i></div>
-                    <script>setTimeout(function(){window.location.href='auth/login.php';},2000);</script>
+                    <script>setTimeout(function(){window.location.href='<?php echo BASE_URL; ?>/auth/login.php';},2000);</script>
                 <?php endif; ?>
 
                 <form method="POST" action="" enctype="multipart/form-data" id="crForm">
@@ -445,7 +446,7 @@ if (isset($_POST['register']) && !isset($error)) {
                 </form>
 
                 <div class="cr-login-link">
-                    Already have an account? <a href="auth/login.php">Sign in here</a>
+                    Already have an account? <a href="<?php echo BASE_URL; ?>/auth/login.php">Sign in here</a>
                 </div>
             </div>
         </div>

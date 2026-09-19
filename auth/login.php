@@ -1,6 +1,7 @@
 <?php
 // Core setup: session, DB, BASE_URL, helpers
 require_once __DIR__ . '/../includes/bootstrap.php';
+global $con;
 /**
  * User & Role Authentication Portal (Login)
  * 
@@ -37,8 +38,12 @@ if (isset($_POST['submit'])) {
             $row = mysqli_fetch_assoc($result);
             $dbpass = $row['password'];
             
-            // Verify BCrypt hashed password
-            if (password_verify($pass, $dbpass)) {
+            // Verify BCrypt hashed password (with legacy fallback & auto-rehash)
+            if (password_verify($pass, $dbpass) || $pass === $dbpass || md5($pass) === $dbpass) {
+                if (!password_verify($pass, $dbpass)) {
+                    $new_hash = password_hash($pass, PASSWORD_BCRYPT);
+                    @mysqli_query($con, "UPDATE user_info SET password = '" . mysqli_real_escape_string($con, $new_hash) . "' WHERE id = " . (int)$row['id']);
+                }
                 // Track successful login
                 track_login_attempt($email, true);
 
@@ -90,8 +95,12 @@ if (isset($_POST['submit'])) {
             $row = mysqli_fetch_assoc($result);
             $dbpass = $row['password'];
 
-            // Verify BCrypt hashed password
-            if (password_verify($pass, $dbpass)) {
+            // Verify BCrypt hashed password (with legacy fallback & auto-rehash)
+            if (password_verify($pass, $dbpass) || $pass === $dbpass || md5($pass) === $dbpass) {
+                if (!password_verify($pass, $dbpass)) {
+                    $new_hash = password_hash($pass, PASSWORD_BCRYPT);
+                    @mysqli_query($con, "UPDATE companies SET password = '" . mysqli_real_escape_string($con, $new_hash) . "' WHERE id = " . (int)$row['id']);
+                }
                 session_regenerate_id(true);          // prevent session fixation
                 $_SESSION['company_id']    = $row['id'];
                 $_SESSION['company_name']  = $row['company_name'];
@@ -480,7 +489,7 @@ if (isset($_POST['submit'])) {
                     </button>
 
                     <div class="lg-alt" id="registerLink">
-                        Don't have an account? <a href="registration.php">Create Account</a>
+                        Don't have an account? <a href="<?php echo BASE_URL; ?>/auth/registration.php">Create Account</a>
                     </div>
 
                     <div class="lg-secure"><i class="fas fa-shield-halved"></i>Your information is protected with NovaHire security.</div>
@@ -516,7 +525,7 @@ if (isset($_POST['submit'])) {
             emailField.placeholder = 'Email Address';
             emailField.type = 'email';
             emailIcon.className = 'fa fa-envelope';
-            registerLink.innerHTML = 'Don\'t have an account? <a href="registration.php">Create Account</a>';
+            registerLink.innerHTML = 'Don\'t have an account? <a href="<?php echo BASE_URL; ?>/auth/registration.php">Create Account</a>';
             registerLink.style.display = 'block';
         }
     }

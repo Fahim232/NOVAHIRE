@@ -14,9 +14,16 @@ if (isset($_POST['btnUpdate'])) {
     $name = mysqli_real_escape_string($con, $_POST['name']);
     $phone = mysqli_real_escape_string($con, $_POST['phone']);
     $email = mysqli_real_escape_string($con, $_POST['email']);
+    
+    // Additional fields for AI matching
+    $degree = mysqli_real_escape_string($con, $_POST['user_degree'] ?? '');
+    $skills = mysqli_real_escape_string($con, $_POST['user_skills'] ?? '');
+    $experience = mysqli_real_escape_string($con, $_POST['experience'] ?? '');
+    $about = mysqli_real_escape_string($con, $_POST['about_me'] ?? '');
+
     $pass = $_POST['password'];
     
-    $update_clause = "username='$name', email='$email', phone='$phone'";
+    $update_clause = "username='$name', email='$email', phone='$phone', user_degree='$degree', user_skills='$skills', experience='$experience', about_me='$about'";
     
     if(!empty($pass)) {
         $passEncrypt = password_hash($pass, PASSWORD_BCRYPT);
@@ -534,6 +541,9 @@ if (isset($_POST['btnUpdate'])) {
                 <a href="view_cv.php" target="_blank" class="btn-hero-cv">
                     <i class="fas fa-id-badge"></i> View CV
                 </a>
+                <a href="ai_cv_generator.php" class="btn-hero-cv" style="background: rgba(16,185,129,0.2); border-color: rgba(16,185,129,0.4);">
+                    <i class="fas fa-wand-magic-sparkles"></i> AI CV Builder
+                </a>
             </div>
         </div>
     </div>
@@ -585,6 +595,32 @@ if (isset($_POST['btnUpdate'])) {
                             <input type="text" name="phone" class="form-control-pro" value="<?php echo htmlspecialchars($result['phone']); ?>" required/>
                         </div>
                     </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group-pro mb-4">
+                            <label>Highest Degree / Education</label>
+                            <input type="text" name="user_degree" class="form-control-pro" value="<?php echo htmlspecialchars($result['user_degree'] ?? ''); ?>" placeholder="e.g. BSc Computer Science"/>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group-pro mb-4">
+                            <label>Years of Experience</label>
+                            <input type="text" name="experience" class="form-control-pro" value="<?php echo htmlspecialchars($result['experience'] ?? ''); ?>" placeholder="e.g. 3 years" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group-pro mb-4">
+                    <label>Professional Skills (Comma separated)</label>
+                    <input type="text" name="user_skills" class="form-control-pro" value="<?php echo htmlspecialchars($result['user_skills'] ?? ''); ?>" placeholder="e.g. Python, Machine Learning, Java, React"/>
+                    <small style="color: #718096; font-size: 0.75rem; display: block; margin-top: 4px;">These skills are used by our AI to recommend the best matching jobs.</small>
+                </div>
+
+                <div class="form-group-pro mb-4">
+                    <label>About Me</label>
+                    <textarea name="about_me" class="form-control-pro" rows="3" placeholder="Write a short professional bio..."><?php echo htmlspecialchars($result['about_me'] ?? ''); ?></textarea>
                 </div>
 
                 <div class="row">

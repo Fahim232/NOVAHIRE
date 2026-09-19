@@ -1,17 +1,20 @@
 <?php
 // Core setup: session, DB, BASE_URL, helpers
 require_once __DIR__ . '/../includes/bootstrap.php';
-if (!isset($_SESSION['id'])) {
-    header('location: ' . BASE_URL . '/auth/login.php');
+global $con;
+require_seeker_login();
+
+$user_id = (int)$_SESSION['id'];
+$user_q = mysqli_query($con, "SELECT * FROM user_info WHERE id = '$user_id'");
+$user = mysqli_fetch_assoc($user_q);
+
+if (!$user) {
+    unset($_SESSION['id'], $_SESSION['username'], $_SESSION['email']);
+    header('Location: ' . BASE_URL . '/auth/login.php?error=' . urlencode('Session expired. Please log in again.'));
     exit();
 }
 
 require_once __DIR__ . '/../includes/header.php';
-
-$user_id = $_SESSION['id'];
-
-$user_q = mysqli_query($con, "SELECT * FROM user_info WHERE id = '$user_id'");
-$user = mysqli_fetch_assoc($user_q);
 
 $fields = ['username' => 15, 'email' => 15, 'phone' => 15, 'user_degree' => 20, 'user_skills' => 25, 'profile' => 10];
 $completion = 0;
@@ -62,31 +65,19 @@ $rec_jobs = [];
 $no_match_jobs = [];
 
 if ($has_user_skills) {
-    $all_jobs_q = mysqli_query($con, "SELECT cj.*, c.company_name, c.logo, c.industry
-        FROM company_jobs cj
-        JOIN companies c ON cj.company_id = c.id
-        WHERE cj.status = 'active' AND cj.deadline >= CURDATE()
-        ORDER BY cj.posted_date DESC");
-    while ($j = mysqli_fetch_assoc($all_jobs_q)) {
-        $match = 0;
-        $matched_skills = [];
-        $job_text = strtolower($j['job_category'] . ' ' . $j['skills_required'] . ' ' . $j['job_title']);
-        foreach ($user_skills as $s) {
-            $s_lower = strtolower($s);
-            if ($s_lower !== '' && preg_match('/\b' . preg_quote($s_lower, '/') . '\b/i', $job_text)) {
-                $match++;
-                $matched_skills[] = $s;
-            }
-        }
-        $j['match_score'] = $match;
-        $j['matched_skills'] = $matched_skills;
-        if ($match > 0) {
+    require_once __DIR__ . '/../includes/placement.php';
+    $recs = nh_get_recommendations($con, $user, 50);
+    foreach ($recs as $j) {
+        $j['match_score'] = $j['ai']['score'];
+        $j['matched_skills'] = $j['ai']['matched_skills'];
+        // Re-inject location if not present, nh_get_recommendations has company_location
+        $j['location'] = $j['company_location'] ?? $j['location'] ?? '';
+        if ($j['ai']['score'] >= 50) {
             $rec_jobs[] = $j;
         } else {
             $no_match_jobs[] = $j;
         }
     }
-    usort($rec_jobs, function($a, $b) { return $b['match_score'] <=> $a['match_score']; });
     $rec_jobs = array_slice($rec_jobs, 0, 6);
 }
 
@@ -1356,7 +1347,7 @@ setTimeout(function() {
                         </div>
                     <?php endif; ?>
                     <div>
-                        <h1>Welcome back, <?php echo htmlspecialchars($user['username']); ?>!</h1>
+                        <h1>Welcome back, <?php echo htmlspecialchars($user['username'] ?? 'Candidate'); ?>!</h1>
                         <p class="dash-subtitle">Here's what's happening with your job search today.</p>
                     </div>
                 </div>
@@ -1508,6 +1499,13 @@ setTimeout(function() {
                     <div class="action-icon" style="background: rgba(26,86,219,0.1); color: #1a56db;"><i class="fas fa-file-pdf"></i></div>
                     <h6>Resume Builder</h6>
                     <small>Create & download</small>
+                </a>
+            </div>
+            <div class="col-lg-3 col-md-6 col-6 mb-3">
+                <a href="ai_cv_generator.php" class="action-card" style="--ab: #8b5cf6;">
+                    <div class="action-icon" style="background: rgba(139,92,246,0.1); color: #8b5cf6;"><i class="fas fa-magic"></i></div>
+                    <h6>AI CV Builder</h6>
+                    <small>Auto-generate CV</small>
                 </a>
             </div>
             <div class="col-lg-3 col-md-6 col-6 mb-3">
@@ -1686,7 +1684,7 @@ setTimeout(function() {
                                 <div class="company"><i class="fas fa-building"></i> <?php echo htmlspecialchars($job['company_name']); ?></div>
                             </div>
                             <?php if ($job['match_score'] > 0): ?>
-                                <span class="match-badge"><i class="fas fa-check"></i> <?php echo $job['match_score']; ?> match<?php echo $job['match_score'] > 1 ? 'es' : ''; ?></span>
+                                <span class="match-badge" title="<?php echo htmlspecialchars(implode("\n", $job['ai']['explanation_points'] ?? [])); ?>"><i class="fas fa-check"></i> <?php echo $job['match_score']; ?>% Match</span>
                             <?php endif; ?>
                         </div>
                         <div class="rec-job-meta">

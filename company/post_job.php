@@ -1,7 +1,6 @@
 <?php
-    session_start();
     require_once __DIR__ . '/../includes/bootstrap.php';
-    include '../admin/dbcon.php';
+    global $con;
 
     // Check if company is logged in
     if (!isset($_SESSION['company_id'])) {
@@ -45,23 +44,31 @@
 
         // Use prepared statement
         $insert_stmt = mysqli_prepare($con, "INSERT INTO company_jobs (company_id, job_title, job_category, job_description, requirements, responsibilities, location, employment_type, salary_range, salary_min, salary_max, experience_required, skills_required, deadline, vacancy_count, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        mysqli_stmt_bind_param($insert_stmt, "issssssssiisssi", $company_id, $job_title, $job_category, $job_description, $requirements, $responsibilities, $location, $employment_type, $salary_range, $salary_min, $salary_max, $experience_required, $skills_required, $deadline, $vacancy_count, $status);
-        
-        if (mysqli_stmt_execute($insert_stmt)) {
-            $job_id = mysqli_insert_id($con);
+        if ($insert_stmt) {
+            mysqli_stmt_bind_param($insert_stmt, "issssssssiisssis", $company_id, $job_title, $job_category, $job_description, $requirements, $responsibilities, $location, $employment_type, $salary_range, $salary_min, $salary_max, $experience_required, $skills_required, $deadline, $vacancy_count, $status);
             
-            // Log activity
-            create_activity_log('company', $company_id, 'job_posted', ['job_id' => $job_id, 'title' => $job_title]);
-            
-            // Send email notifications to matching job alert subscribers
-            send_job_alerts_to_subscribers($con, $job_id);
-            
-            header("Location: post_job.php?success=$job_id");
-            exit;
+            if (mysqli_stmt_execute($insert_stmt)) {
+                $job_id = mysqli_insert_id($con);
+                
+                // Log activity
+                if (function_exists('create_activity_log')) {
+                    create_activity_log('company', $company_id, 'job_posted', ['job_id' => $job_id, 'title' => $job_title]);
+                }
+                
+                // Send email notifications to matching job alert subscribers
+                if (function_exists('send_job_alerts_to_subscribers')) {
+                    send_job_alerts_to_subscribers($con, $job_id);
+                }
+                
+                header("Location: post_job.php?success=$job_id");
+                exit;
+            } else {
+                $error_msg = "Failed to post job. Please try again.";
+            }
+            mysqli_stmt_close($insert_stmt);
         } else {
-            $error_msg = "Failed to post job. Please try again.";
+            $error_msg = "Database error. Please try again.";
         }
-        mysqli_stmt_close($insert_stmt);
     }
 
     $categories = [
