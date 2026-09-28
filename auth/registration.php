@@ -323,7 +323,7 @@ require_once __DIR__ . '/../includes/bootstrap.php';
                 <div class="row">
                     <div class="col-md-6">
                         <div class="input-group-modern">
-                            <input name="phone" type="text" placeholder="Phone" class="form-control-modern" maxlength="10" required>
+                            <input name="phone" type="text" placeholder="Phone" class="form-control-modern" maxlength="11" pattern="[0-9]{11}" required>
                             <i class="fas fa-phone"></i>
                         </div>
                     </div>

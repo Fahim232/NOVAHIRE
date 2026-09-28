@@ -1,5 +1,6 @@
 <?php
     require_once __DIR__ . '/../includes/bootstrap.php';
+    global $con;
 
     $admin_username = $_SESSION['admin_username'] ?? 'Admin';
     $admin_id = $_SESSION['admin_id'] ?? 0;
@@ -11,6 +12,11 @@
         }
     }
     $unread_notifs = get_unread_count($con, 'admin', $admin_id);
+    $pending_verifs_count = 0;
+    $pvq = mysqli_query($con, "SELECT COUNT(*) as cnt FROM companies WHERE verification_status IN ('under_review', 'resubmission_required')");
+    if ($pvq && $pvrow = mysqli_fetch_assoc($pvq)) {
+        $pending_verifs_count = (int)$pvrow['cnt'];
+    }
     $current_page = basename($_SERVER['PHP_SELF']);
     $admin_display = ucwords(str_replace('_', ' ', $admin_username));
 ?>
@@ -310,8 +316,10 @@
     <div class="an-center">
       <a class="an-link <?php echo in_array($current_page, ['index.php','admin_dashboard.php']) ? 'active' : ''; ?>" href="admin_dashboard.php"><i class="fas fa-th-large"></i>Dashboard</a>
       <a class="an-link <?php echo in_array($current_page, ['show_users.php','update_user.php','add_details.php','delete_user.php']) ? 'active' : ''; ?>" href="show_users.php"><i class="fas fa-users"></i>Users</a>
+      <a class="an-link <?php echo in_array($current_page, ['company_verifications.php','company_verification_detail.php']) ? 'active' : ''; ?>" href="company_verifications.php"><i class="fas fa-building-circle-check"></i>Verifications<?php if ($pending_verifs_count > 0): ?> <span style="background:#f59e0b;color:#fff;font-size:0.62rem;font-weight:800;padding:1px 6px;border-radius:999px;margin-left:4px;"><?php echo $pending_verifs_count; ?></span><?php endif; ?></a>
       <a class="an-link <?php echo in_array($current_page, ['showdata.php','update_application.php','view_cv.php','delete_application.php']) ? 'active' : ''; ?>" href="showdata.php"><i class="fas fa-file-alt"></i>Applications</a>
       <a class="an-link <?php echo $current_page == 'mentors.php' ? 'active' : ''; ?>" href="mentors.php"><i class="fas fa-chalkboard-user"></i>Mentors</a>
+      <a class="an-link <?php echo $current_page == 'manage_skills.php' ? 'active' : ''; ?>" href="manage_skills.php"><i class="fas fa-medal"></i>Verified Skills</a>
       <a class="an-link <?php echo $current_page == 'revenue.php' ? 'active' : ''; ?>" href="revenue.php"><i class="fas fa-chart-line"></i>Revenue</a>
 
       <!-- More -->
@@ -319,6 +327,7 @@
         <a class="an-link" href="#" id="anMoreBtn"><i class="fas fa-ellipsis-h"></i>More</a>
         <div class="an-dropdown" id="anMoreDrop">
           <div class="an-drop-label">Quick Actions</div>
+          <a class="an-drop-item" href="company_verifications.php"><i class="fas fa-building-circle-check"></i>Company Verifications</a>
           <a class="an-drop-item" href="add_details.php"><i class="fas fa-user-plus"></i>Add User</a>
           <a class="an-drop-item" href="add_admin.php"><i class="fas fa-user-shield"></i>Add Admin</a>
           <div class="an-drop-divider"></div>
@@ -405,8 +414,10 @@
 <div class="an-mobile-menu" id="anMobileMenu">
   <a class="an-mobile-link <?php echo in_array($current_page, ['index.php','admin_dashboard.php']) ? 'active' : ''; ?>" href="admin_dashboard.php"><i class="fas fa-th-large"></i>Dashboard</a>
   <a class="an-mobile-link <?php echo in_array($current_page, ['show_users.php','update_user.php','add_details.php','delete_user.php']) ? 'active' : ''; ?>" href="show_users.php"><i class="fas fa-users"></i>Users</a>
+  <a class="an-mobile-link <?php echo in_array($current_page, ['company_verifications.php','company_verification_detail.php']) ? 'active' : ''; ?>" href="company_verifications.php"><i class="fas fa-building-circle-check"></i>Company Verifications<?php if ($pending_verifs_count > 0): ?> <span style="background:#f59e0b;color:#fff;font-size:0.65rem;padding:2px 6px;border-radius:999px;margin-left:auto;"><?php echo $pending_verifs_count; ?></span><?php endif; ?></a>
   <a class="an-mobile-link <?php echo in_array($current_page, ['showdata.php','update_application.php','view_cv.php','delete_application.php']) ? 'active' : ''; ?>" href="showdata.php"><i class="fas fa-file-alt"></i>Applications</a>
   <a class="an-mobile-link <?php echo $current_page == 'mentors.php' ? 'active' : ''; ?>" href="mentors.php"><i class="fas fa-chalkboard-user"></i>Mentors</a>
+  <a class="an-mobile-link <?php echo $current_page == 'manage_skills.php' ? 'active' : ''; ?>" href="manage_skills.php"><i class="fas fa-medal"></i>Verified Skills</a>
   <a class="an-mobile-link <?php echo $current_page == 'revenue.php' ? 'active' : ''; ?>" href="revenue.php"><i class="fas fa-chart-line"></i>Revenue</a>
   <div class="an-mobile-divider"></div>
   <a class="an-mobile-link" href="add_details.php"><i class="fas fa-user-plus"></i>Add User</a>

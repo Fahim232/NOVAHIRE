@@ -366,7 +366,7 @@ if (isset($_POST['submit'])) {
             cursor: pointer;
             transition: transform .25s, box-shadow .3s, opacity .2s;
         }
-        .lg-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -8px rgba(26,86,219,0.6); color: #ffffff; }
+        .lg-btn:hover { transform: translateY(-6px); padding:18px 36px; box-shadow: 0 12px 28px -8px rgba(26,86,219,0.6); color: #ffffff; }
         .lg-btn:disabled { opacity: .75; cursor: not-allowed; transform: none; }
         .lg-btn .spin { display: none; }
         .lg-btn.loading .spin { display: inline-block; }

@@ -54,10 +54,39 @@ if (isset($_POST['register']) && !isset($error)) {
         }
         if (!isset($error)) {
             $status = 'active';
-            $ins_stmt = mysqli_prepare($con, "INSERT INTO companies (company_name, company_email, company_phone, company_address, company_website, industry, company_size, description, logo, password, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            mysqli_stmt_bind_param($ins_stmt, "sssssssssss", $company_name, $email, $phone, $address, $website, $industry, $company_size, $description, $logo_name, $hashed_password, $status);
+            $is_verified = 0;
+            $verif_status = 'pending';
+            $ins_stmt = mysqli_prepare($con, "INSERT INTO companies (company_name, company_email, company_phone, company_address, company_website, industry, company_size, description, logo, password, status, is_verified, verification_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($ins_stmt, "sssssssssssis", $company_name, $email, $phone, $address, $website, $industry, $company_size, $description, $logo_name, $hashed_password, $status, $is_verified, $verif_status);
             if (mysqli_stmt_execute($ins_stmt)) {
-                $success_msg = 'Company registered successfully!';
+                $new_comp_id = mysqli_insert_id($con);
+                $success_msg = 'Company registered successfully! Please log in and submit your business verification evidence to unlock recruitment features.';
+                
+                // Initial verification audit trail
+                $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+                $rev_stmt = mysqli_prepare($con, "INSERT INTO company_verification_reviews (company_id, action, previous_status, new_status, reason, ip_address, created_at) VALUES (?, 'submitted', NULL, 'pending', 'Company registered. Awaiting business evidence submission.', ?, NOW())");
+                if ($rev_stmt) {
+                    mysqli_stmt_bind_param($rev_stmt, "is", $new_comp_id, $ip);
+                    mysqli_stmt_execute($rev_stmt);
+                    mysqli_stmt_close($rev_stmt);
+                }
+
+                // Initial welcome notification regarding verification
+                if (function_exists('create_notification')) {
+                    create_notification(
+                        $con,
+                        'company',
+                        $new_comp_id,
+                        'system',
+                        null,
+                        'Welcome to NovaHire! 🏢',
+                        'Welcome aboard! To unlock job postings and recruitment tools, please upload your Trade License or business evidence in the Verification section.',
+                        'system',
+                        'company_verification',
+                        $new_comp_id
+                    );
+                }
+
                 // Send welcome email
                 require_once dirname(__DIR__) . '/includes/mail.php';
                 send_company_welcome_email($email, $company_name);
