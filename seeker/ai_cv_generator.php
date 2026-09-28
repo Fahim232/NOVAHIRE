@@ -99,8 +99,10 @@ require_once __DIR__ . '/../includes/header.php';
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-<!-- html2pdf for direct client-side PDF downloads -->
+<!-- html2pdf, html2canvas, and jsPDF for reliable single-page PDF generation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
     :root {
@@ -672,17 +674,18 @@ require_once __DIR__ . '/../includes/header.php';
        TEMPLATE 1: MODERN CLEAN (tpl-modern)
        ======================================================== */
     .tpl-modern {
-        padding: 40px 42px;
+        padding: 26px 32px;
         color: #1e293b;
         font-family: 'Plus Jakarta Sans', sans-serif;
+        box-sizing: border-box;
     }
     .tpl-modern .cv-header {
         border-bottom: 2px solid #e2e8f0;
-        padding-bottom: 24px;
-        margin-bottom: 24px;
+        padding-bottom: 14px;
+        margin-bottom: 16px;
     }
     .tpl-modern .cv-name {
-        font-size: 2.3rem;
+        font-size: 2.1rem;
         font-weight: 800;
         color: #0f172a;
         letter-spacing: -0.03em;
@@ -690,72 +693,72 @@ require_once __DIR__ . '/../includes/header.php';
         line-height: 1.15;
     }
     .tpl-modern .cv-title {
-        font-size: 1.08rem;
+        font-size: 0.95rem;
         font-weight: 700;
         color: #4f46e5;
         text-transform: uppercase;
         letter-spacing: 1px;
-        margin: 6px 0 14px;
+        margin: 4px 0 10px;
     }
     .tpl-modern .cv-contacts {
         display: flex;
         flex-wrap: wrap;
-        gap: 16px;
-        font-size: 0.85rem;
+        gap: 14px;
+        font-size: 0.82rem;
         color: #475569;
     }
     .tpl-modern .cv-contacts span {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
     }
     .tpl-modern .cv-contacts i { color: #6366f1; }
 
     .tpl-modern .cv-body-grid {
         display: grid;
-        grid-template-columns: 65% 35%;
-        gap: 32px;
+        grid-template-columns: 64% 36%;
+        gap: 24px;
     }
     .tpl-modern .sec-title {
-        font-size: 1rem;
+        font-size: 0.92rem;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.8px;
         color: #0f172a;
-        padding-bottom: 6px;
+        padding-bottom: 4px;
         border-bottom: 2px solid #4f46e5;
-        margin-bottom: 14px;
+        margin-bottom: 10px;
     }
     .tpl-modern .cv-exp-role {
-        font-size: 0.98rem;
+        font-size: 0.94rem;
         font-weight: 700;
         color: #0f172a;
     }
     .tpl-modern .cv-exp-company {
-        font-size: 0.86rem;
+        font-size: 0.84rem;
         font-weight: 600;
         color: #4f46e5;
     }
     .tpl-modern .cv-exp-meta {
-        font-size: 0.78rem;
+        font-size: 0.76rem;
         color: #64748b;
         font-weight: 500;
     }
     .tpl-modern .cv-bullets {
-        margin: 8px 0 16px 18px;
+        margin: 4px 0 10px 16px;
         padding: 0;
-        font-size: 0.85rem;
-        line-height: 1.65;
+        font-size: 0.82rem;
+        line-height: 1.5;
         color: #334155;
     }
     .tpl-modern .cv-bullets li {
-        margin-bottom: 6px;
+        margin-bottom: 3px;
     }
     .tpl-modern .cv-summary-text {
-        font-size: 0.88rem;
-        line-height: 1.7;
+        font-size: 0.84rem;
+        line-height: 1.55;
         color: #334155;
-        margin-bottom: 20px;
+        margin-bottom: 14px;
     }
 
     /* ========================================================
@@ -767,50 +770,51 @@ require_once __DIR__ . '/../includes/header.php';
         min-height: 297mm;
         font-family: 'Inter', sans-serif;
         background: #ffffff;
+        box-sizing: border-box;
     }
     .tpl-executive .exec-sidebar {
         background: #0f172a;
         color: #f8fafc;
-        padding: 40px 24px;
+        padding: 26px 20px;
     }
     .tpl-executive .exec-avatar-badge {
-        width: 80px;
-        height: 80px;
+        width: 68px;
+        height: 68px;
         border-radius: 50%;
         background: #334155;
-        border: 3px solid #64748b;
+        border: 2.5px solid #64748b;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.8rem;
+        font-size: 1.6rem;
         color: #f8fafc;
-        margin-bottom: 24px;
+        margin-bottom: 18px;
     }
     .tpl-executive .exec-side-sec {
-        margin-bottom: 28px;
+        margin-bottom: 18px;
     }
     .tpl-executive .exec-side-title {
-        font-size: 0.82rem;
+        font-size: 0.78rem;
         font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 1.2px;
         color: #94a3b8;
         border-bottom: 1px solid #334155;
-        padding-bottom: 6px;
-        margin-bottom: 12px;
+        padding-bottom: 4px;
+        margin-bottom: 8px;
     }
     .tpl-executive .exec-contact-item {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         color: #cbd5e1;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         display: flex;
         align-items: flex-start;
-        gap: 8px;
-        line-height: 1.4;
+        gap: 6px;
+        line-height: 1.35;
     }
     .tpl-executive .exec-contact-item i {
         color: #38bdf8;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         margin-top: 2px;
     }
     .tpl-executive .exec-sidebar .skill-pill-interactive {
@@ -831,44 +835,45 @@ require_once __DIR__ . '/../includes/header.php';
         border-color: #38bdf8;
     }
     .tpl-executive .exec-main {
-        padding: 40px 36px;
+        padding: 26px 26px;
         color: #1e293b;
+        box-sizing: border-box;
     }
     .tpl-executive .exec-name {
         font-family: 'Playfair Display', serif;
-        font-size: 2.4rem;
+        font-size: 2.15rem;
         font-weight: 700;
         color: #0f172a;
         margin: 0;
         line-height: 1.1;
     }
     .tpl-executive .exec-title {
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 2px;
+        letter-spacing: 1.5px;
         color: #0284c7;
-        margin: 8px 0 20px;
+        margin: 6px 0 14px;
     }
     .tpl-executive .exec-summary-box {
         background: #f8fafc;
-        border-left: 4px solid #0284c7;
-        padding: 14px 16px;
-        border-radius: 0 8px 8px 0;
-        font-size: 0.85rem;
-        line-height: 1.65;
+        border-left: 3px solid #0284c7;
+        padding: 10px 14px;
+        border-radius: 0 6px 6px 0;
+        font-size: 0.82rem;
+        line-height: 1.55;
         color: #334155;
-        margin-bottom: 26px;
+        margin-bottom: 18px;
     }
     .tpl-executive .exec-sec-title {
-        font-size: 1.05rem;
+        font-size: 0.95rem;
         font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.8px;
         color: #0f172a;
         border-bottom: 2px solid #0284c7;
-        padding-bottom: 6px;
-        margin-bottom: 16px;
+        padding-bottom: 4px;
+        margin-bottom: 12px;
     }
     .tpl-executive .exec-exp-header {
         display: flex;
@@ -876,25 +881,25 @@ require_once __DIR__ . '/../includes/header.php';
         align-items: baseline;
     }
     .tpl-executive .exec-exp-role {
-        font-size: 0.96rem;
+        font-size: 0.92rem;
         font-weight: 700;
         color: #0f172a;
     }
     .tpl-executive .exec-exp-company {
-        font-size: 0.88rem;
+        font-size: 0.84rem;
         font-weight: 600;
         color: #0284c7;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }
     .tpl-executive .exec-exp-date {
-        font-size: 0.78rem;
+        font-size: 0.76rem;
         font-weight: 600;
         color: #64748b;
     }
     .tpl-executive .exec-bullets {
-        margin: 6px 0 16px 16px;
-        font-size: 0.84rem;
-        line-height: 1.6;
+        margin: 4px 0 10px 14px;
+        font-size: 0.82rem;
+        line-height: 1.5;
         color: #334155;
     }
 
@@ -902,20 +907,21 @@ require_once __DIR__ . '/../includes/header.php';
        TEMPLATE 3: MINIMALIST TECH (tpl-minimalist)
        ======================================================== */
     .tpl-minimalist {
-        padding: 42px 46px;
+        padding: 28px 34px;
         font-family: 'Inter', sans-serif;
         color: #111827;
+        box-sizing: border-box;
     }
     .tpl-minimalist .tech-header {
         border-bottom: 1px solid #111827;
-        padding-bottom: 18px;
-        margin-bottom: 22px;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
     }
     .tpl-minimalist .tech-name {
-        font-size: 2.2rem;
+        font-size: 2.05rem;
         font-weight: 800;
         letter-spacing: -0.04em;
         margin: 0;
@@ -923,21 +929,21 @@ require_once __DIR__ . '/../includes/header.php';
     }
     .tpl-minimalist .tech-title {
         font-family: 'Fira Code', monospace;
-        font-size: 0.95rem;
+        font-size: 0.88rem;
         color: #4b5563;
         font-weight: 600;
-        margin: 4px 0 0;
+        margin: 3px 0 0;
     }
     .tpl-minimalist .tech-contacts {
         font-family: 'Fira Code', monospace;
-        font-size: 0.76rem;
+        font-size: 0.78rem;
         color: #4b5563;
         text-align: right;
         line-height: 1.6;
     }
     .tpl-minimalist .tech-sec-title {
         font-family: 'Fira Code', monospace;
-        font-size: 0.85rem;
+        font-size: 0.86rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -945,7 +951,10 @@ require_once __DIR__ . '/../includes/header.php';
         background: #f3f4f6;
         padding: 4px 8px;
         border-left: 3px solid #111827;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
     .tpl-minimalist .tech-exp-row {
         display: flex;
@@ -956,14 +965,14 @@ require_once __DIR__ . '/../includes/header.php';
     .tpl-minimalist .tech-exp-sub {
         display: flex;
         justify-content: space-between;
-        font-size: 0.82rem;
+        font-size: 0.8rem;
         color: #4b5563;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
     }
     .tpl-minimalist .tech-bullets {
-        margin: 4px 0 14px 16px;
-        font-size: 0.84rem;
-        line-height: 1.6;
+        margin: 4px 0 10px 16px;
+        font-size: 0.82rem;
+        line-height: 1.5;
         color: #374151;
     }
     .tpl-minimalist .tech-tag {
@@ -1009,10 +1018,15 @@ require_once __DIR__ . '/../includes/header.php';
             size: A4 portrait;
             margin: 0;
         }
-        body {
+        html, body {
             background: white !important;
             padding: 0 !important;
             margin: 0 !important;
+            width: 210mm !important;
+            height: 297mm !important;
+            overflow: hidden !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
             color: #000 !important;
         }
         .navbar, 
@@ -1025,32 +1039,45 @@ require_once __DIR__ . '/../includes/header.php';
         .cv-item-actions, 
         .btn-add-skill-inline, 
         .skill-pill-del,
+        .btn-cv-micro,
+        button,
         .site-footer,
         .ai-chat-widget,
         #toastContainer {
             display: none !important;
         }
+        .cv-generator-wrapper,
         .cv-workspace {
             padding: 0 !important;
             margin: 0 !important;
         }
-        .container, .container-fluid {
+        .container, .container-fluid, .row, [class*="col-"] {
             max-width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
+            display: block !important;
         }
         .cv-a4-sheet-container {
             padding: 0 !important;
             margin: 0 !important;
-            overflow: visible !important;
+            overflow: hidden !important;
+            display: block !important;
         }
         .cv-a4-sheet {
             width: 210mm !important;
-            min-height: 297mm !important;
+            height: 297mm !important;
+            max-height: 297mm !important;
             box-shadow: none !important;
             border-radius: 0 !important;
             transform: none !important;
-            margin: 0 auto !important;
+            margin: 0 !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+        }
+        [contenteditable] {
+            outline: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
         }
     }
 </style>
@@ -1370,7 +1397,7 @@ const aiCvApp = {
                 </li>`;
             });
 
-            expHtml += `<div class="cv-interactive-item mb-3">
+            expHtml += `<div class="cv-interactive-item mb-2">
                 <div class="cv-item-actions">
                     <button class="btn-cv-micro" onclick="aiCvApp.addBulletToItem('experience', ${eIdx})">+ Bullet</button>
                     <button class="btn-cv-micro btn-micro-danger" onclick="aiCvApp.deleteItem('experience', ${eIdx})"><i class="fas fa-trash"></i></button>
@@ -1400,7 +1427,7 @@ const aiCvApp = {
                 </li>`;
             });
 
-            projHtml += `<div class="cv-interactive-item mb-3">
+            projHtml += `<div class="cv-interactive-item mb-2">
                 <div class="cv-item-actions">
                     <button class="btn-cv-micro" onclick="aiCvApp.addBulletToItem('projects', ${pIdx})">+ Bullet</button>
                     <button class="btn-cv-micro btn-micro-danger" onclick="aiCvApp.deleteItem('projects', ${pIdx})"><i class="fas fa-trash"></i></button>
@@ -1415,7 +1442,7 @@ const aiCvApp = {
 
         let eduHtml = '';
         (d.education || []).forEach((edu, edIdx) => {
-            eduHtml += `<div class="cv-interactive-item mb-3">
+            eduHtml += `<div class="cv-interactive-item mb-2">
                 <div class="cv-item-actions">
                     <button class="btn-cv-micro btn-micro-danger" onclick="aiCvApp.deleteItem('education', ${edIdx})"><i class="fas fa-trash"></i></button>
                 </div>
@@ -1442,7 +1469,7 @@ const aiCvApp = {
 
         <div class="cv-body-grid">
             <div class="cv-main-col">
-                <div class="mb-4">
+                <div class="mb-3">
                     <div class="section-header-wrap">
                         <div class="sec-title">Professional Summary</div>
                         <button class="btn-section-enhance" onclick="aiCvApp.enhanceSection('summary')"><i class="fas fa-wand-magic-sparkles"></i> AI Polish</button>
@@ -1450,7 +1477,7 @@ const aiCvApp = {
                     <div class="cv-summary-text" contenteditable="true" data-path="summary">${this.escapeHtml(d.summary || '')}</div>
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-3">
                     <div class="section-header-wrap">
                         <div class="sec-title">Work Experience</div>
                         <button class="btn-section-enhance" onclick="aiCvApp.addExperienceItem()">+ Add Role</button>
@@ -1468,21 +1495,21 @@ const aiCvApp = {
             </div>
 
             <div class="cv-side-col">
-                <div class="mb-4">
+                <div class="mb-3">
                     <div class="sec-title">Technical Skills</div>
                     <div class="d-flex flex-wrap align-items-center">
                         ${this.renderSkillsList(techSkills, 'technical')}
                     </div>
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-3">
                     <div class="sec-title">Soft Skills</div>
                     <div class="d-flex flex-wrap align-items-center">
                         ${this.renderSkillsList(softSkills, 'soft')}
                     </div>
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-3">
                     <div class="sec-title">Tools & Platforms</div>
                     <div class="d-flex flex-wrap align-items-center">
                         ${this.renderSkillsList(tools, 'tools')}
@@ -1623,7 +1650,7 @@ const aiCvApp = {
                 <div contenteditable="true" data-path="summary">${this.escapeHtml(d.summary || '')}</div>
             </div>
 
-            <div class="mb-4">
+            <div class="mb-3">
                 <div class="section-header-wrap">
                     <div class="exec-sec-title">Work Experience</div>
                     <button class="btn-section-enhance" onclick="aiCvApp.addExperienceItem()">+ Add Role</button>
@@ -1671,7 +1698,7 @@ const aiCvApp = {
                 </li>`;
             });
 
-            expHtml += `<div class="cv-interactive-item mb-3">
+            expHtml += `<div class="cv-interactive-item mb-2">
                 <div class="cv-item-actions">
                     <button class="btn-cv-micro" onclick="aiCvApp.addBulletToItem('experience', ${eIdx})">+ Bullet</button>
                     <button class="btn-cv-micro btn-micro-danger" onclick="aiCvApp.deleteItem('experience', ${eIdx})"><i class="fas fa-trash"></i></button>
@@ -1701,7 +1728,7 @@ const aiCvApp = {
                 </li>`;
             });
 
-            projHtml += `<div class="cv-interactive-item mb-3">
+            projHtml += `<div class="cv-interactive-item mb-2">
                 <div class="cv-item-actions">
                     <button class="btn-cv-micro btn-micro-danger" onclick="aiCvApp.deleteItem('projects', ${pIdx})"><i class="fas fa-trash"></i></button>
                 </div>
@@ -1737,7 +1764,7 @@ const aiCvApp = {
             </div>
         </div>
 
-        <div class="mb-4">
+        <div class="mb-3">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="tech-sec-title">01. Summary</div>
                 <button class="btn-section-enhance" onclick="aiCvApp.enhanceSection('summary')">✨ AI Polish</button>
@@ -1745,7 +1772,7 @@ const aiCvApp = {
             <p style="font-size:0.85rem; line-height:1.65; color:#374151;" contenteditable="true" data-path="summary">${this.escapeHtml(d.summary || '')}</p>
         </div>
 
-        <div class="mb-4">
+        <div class="mb-3">
             <div class="tech-sec-title">02. Technical Skills</div>
             <div class="mb-2">
                 <small class="text-muted font-weight-bold mr-2">LANGUAGES & FRAMEWORKS:</small>
@@ -1757,7 +1784,7 @@ const aiCvApp = {
             </div>
         </div>
 
-        <div class="mb-4">
+        <div class="mb-3">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="tech-sec-title">03. Experience</div>
                 <button class="btn-section-enhance" onclick="aiCvApp.addExperienceItem()">+ Role</button>
@@ -1765,7 +1792,7 @@ const aiCvApp = {
             ${expHtml}
         </div>
 
-        <div class="mb-4">
+        <div class="mb-3">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="tech-sec-title">04. Engineering Projects</div>
                 <button class="btn-section-enhance" onclick="aiCvApp.addProjectItem()">+ Project</button>
@@ -2159,37 +2186,154 @@ const aiCvApp = {
     },
 
     // ─────────────────────────────────────────────────────────────
-    // EXPORT PDF: Client-side html2pdf / Browser Print
+    // EXPORT PDF: Pristine 1-Page A4 Direct html2canvas + jsPDF Engine
     // ─────────────────────────────────────────────────────────────
-    exportPdf() {
-        const element = document.getElementById('cvA4Sheet');
-        if (!element) return;
+    async exportPdf() {
+        const originalSheet = document.getElementById('cvA4Sheet');
+        if (!originalSheet) return;
 
-        this.showToast('📄 Generating high-resolution PDF...');
+        this.showToast('📄 Preparing pristine 1-page A4 PDF...');
 
-        // Temporarily reset zoom for crisp export
-        const oldTransform = element.style.transform;
-        element.style.transform = 'none';
+        // 1. Create an offscreen sandbox at viewport origin (0, 0)
+        // This completely eliminates document scroll/offset bugs that cause blank pages
+        const sandbox = document.createElement('div');
+        sandbox.id = 'cvExportSandbox';
+        sandbox.style.cssText = 'position:fixed;top:0;left:0;width:794px;z-index:999999;background:#ffffff;box-shadow:none;margin:0;padding:0;pointer-events:none;opacity:1;';
 
-        const opt = {
-            margin:       0,
-            filename:     (this.cvData.full_name || 'Candidate').replace(/\s+/g, '_') + '_CV.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+        // 2. Clone the sheet into sandbox
+        const clone = originalSheet.cloneNode(true);
+        clone.id = 'cvA4SheetExportClone';
+        clone.style.transform = 'none';
+        clone.style.boxShadow = 'none';
+        clone.style.borderRadius = '0';
+        clone.style.border = 'none';
+        clone.style.margin = '0';
+        clone.style.width = '794px';
+        clone.style.minWidth = '794px';
+        clone.style.maxWidth = '794px';
+        clone.style.boxSizing = 'border-box';
+        clone.style.background = '#ffffff';
 
-        if (typeof html2pdf !== 'undefined') {
-            html2pdf().set(opt).from(element).save().then(() => {
-                element.style.transform = oldTransform;
-                this.showToast('✅ PDF Download Complete!');
-            }).catch(err => {
-                element.style.transform = oldTransform;
-                console.error("html2pdf failed, falling back to window.print():", err);
-                window.print();
+        // 3. Strip all interactive editing UI and buttons from the clone
+        const selectorsToRemove = [
+            'button',
+            '.btn-section-enhance',
+            '.cv-item-actions',
+            '.btn-cv-micro',
+            '.skill-pill-del',
+            '.btn-add-skill-inline',
+            '.ai-btn-wrapper'
+        ];
+        selectorsToRemove.forEach(sel => {
+            clone.querySelectorAll(sel).forEach(el => el.remove());
+        });
+
+        // Remove contenteditable attributes and active outlines
+        clone.querySelectorAll('[contenteditable]').forEach(el => {
+            el.removeAttribute('contenteditable');
+            el.style.outline = 'none';
+            el.style.boxShadow = 'none';
+            el.style.background = 'transparent';
+        });
+
+        // Add sandbox style override to ensure clean rendering
+        const sandboxStyle = document.createElement('style');
+        sandboxStyle.textContent = `
+            #cvExportSandbox * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            #cvExportSandbox .cv-interactive-item {
+                padding: 0 !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                background: transparent !important;
+            }
+            #cvExportSandbox .skill-pill-interactive {
+                cursor: default !important;
+            }
+        `;
+        sandbox.appendChild(sandboxStyle);
+        sandbox.appendChild(clone);
+        document.body.appendChild(sandbox);
+
+        const safeCandidateName = (this.cvData.full_name || 'Candidate')
+            .trim()
+            .replace(/[^a-zA-Z0-9_-]/g, '_');
+        const filename = `${safeCandidateName}_CV.pdf`;
+
+        try {
+            // Ensure custom web fonts are fully loaded before capturing
+            if (document.fonts && document.fonts.ready) {
+                await document.fonts.ready;
+            }
+
+            // Small delay for computed DOM layout stabilization
+            await new Promise(r => setTimeout(r, 120));
+
+            const h2c = window.html2canvas || (typeof html2canvas !== 'undefined' ? html2canvas : null);
+            const jsPdfClass = (window.jspdf && window.jspdf.jsPDF) || (typeof jsPDF !== 'undefined' ? jsPDF : null);
+
+            if (!h2c || !jsPdfClass) {
+                throw new Error('html2canvas or jsPDF library not available');
+            }
+
+            // High-resolution canvas snapshot (scale: 2) at exact (0, 0)
+            const canvas = await h2c(clone, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                scrollX: 0,
+                scrollY: 0,
+                x: 0,
+                y: 0,
+                width: 794,
+                windowWidth: 794,
+                backgroundColor: '#ffffff'
             });
-        } else {
-            element.style.transform = oldTransform;
+
+            // Clean up sandbox from DOM immediately after capture
+            if (document.body.contains(sandbox)) {
+                document.body.removeChild(sandbox);
+            }
+
+            // Initialize 1-Page A4 jsPDF: 210mm x 297mm
+            const pdf = new jsPdfClass({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+                compress: true
+            });
+
+            const a4Width = 210;
+            const a4Height = 297;
+
+            // Calculate height in mm corresponding to 210mm width
+            let renderedHeight = (canvas.height * a4Width) / canvas.width;
+            let renderedWidth = a4Width;
+            let posX = 0;
+            let posY = 0;
+
+            // Strictly constrain to EXACTLY ONE A4 PAGE:
+            // If content height is slightly taller than standard A4 (297mm), scale down proportionally
+            if (renderedHeight > a4Height) {
+                const scale = a4Height / renderedHeight;
+                renderedHeight = a4Height;
+                renderedWidth = a4Width * scale;
+                posX = (a4Width - renderedWidth) / 2; // Center horizontally
+            }
+
+            const imgData = canvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', posX, posY, renderedWidth, renderedHeight, undefined, 'FAST');
+            pdf.save(filename);
+
+            this.showToast('✅ Download complete! Formatted on 1 A4 page.');
+        } catch (err) {
+            if (document.body.contains(sandbox)) {
+                document.body.removeChild(sandbox);
+            }
+            console.error('Single-page PDF generation error:', err);
+            this.showToast('⚠️ PDF direct export fallback. Opening print preview...');
             window.print();
         }
     }

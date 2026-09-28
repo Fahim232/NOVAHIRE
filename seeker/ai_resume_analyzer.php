@@ -40,20 +40,51 @@ $stmt = mysqli_prepare($con, "INSERT INTO ai_resume_analyses (user_id, score, de
 mysqli_stmt_bind_param($stmt, "iis", $user_id, $analysis['total'], $details);
 mysqli_stmt_execute($stmt);
 mysqli_stmt_close($stmt);
+
+require_once __DIR__ . '/../includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>AI Resume Analyzer | NovaHire</title>
-    <?php require_once __DIR__ . '/../includes/links.php'; ?>
-    <?php echo ai_css_link(); ?>
-    <style>
-        body { background: #f8fafc; }
-        .label-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; font-weight:700; font-size:0.8rem; }
-        .ai-section { margin-top: 30px; }
-    </style>
-</head>
-<body>
+<style>
+    body {
+        background: var(--ai-bg, var(--bg, #f8fafc));
+        color: var(--ai-text, var(--text, #0f172a));
+        transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .label-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .ai-section {
+        margin-top: 30px;
+    }
+    .resume-summary-box {
+        background: #f5f3ff;
+        border: 1px solid #ddd6fe;
+        border-radius: 12px;
+        font-size: 0.82rem;
+        color: #4c1d95;
+        text-align: left;
+    }
+    [data-theme="dark"] .resume-summary-box,
+    body.dark-theme .resume-summary-box {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.35);
+        color: #c7d2fe;
+    }
+    .strength-item, .gap-item, .suggestion-text {
+        font-size: 0.85rem;
+        color: var(--ai-text, var(--text, #334155));
+    }
+    .plan-badge {
+        background: var(--primary, #1a56db) !important;
+        color: #ffffff !important;
+    }
+</style>
+
 <?php ai_page_header('AI Resume Analyzer', 'An objective, five-dimension review of your profile with a personalised improvement plan.', 'file-lines'); ?>
 
 <div class="container" style="padding-bottom: 60px;">
@@ -69,8 +100,8 @@ mysqli_stmt_close($stmt);
                     </span>
                 </div>
                 <?php if (!empty($analysis['llm_summary'])): ?>
-                    <div class="mt-3 p-3" style="background:#f5f3ff; border-radius:12px; font-size:0.82rem; color:#4c1d95; text-align:left;">
-                        <i class="fas fa-robot mr-2"></i><?php echo nl2br(htmlspecialchars($analysis['llm_summary'])); ?>
+                    <div class="mt-3 p-3 resume-summary-box">
+                        <i class="fas fa-robot mr-2" style="color:var(--primary);"></i><?php echo nl2br(htmlspecialchars($analysis['llm_summary'])); ?>
                     </div>
                 <?php endif; ?>
                 <a href="profile.php" class="btn-ai mt-4" style="width:100%; justify-content:center;"><i class="fas fa-user-pen"></i> Improve My Profile</a>
@@ -80,7 +111,7 @@ mysqli_stmt_close($stmt);
         <!-- Middle: dimensions -->
         <div class="col-lg-4 mb-4">
             <div class="ai-card">
-                <h4 class="mb-3"><i class="fas fa-chart-pie mr-2" style="color:#1a56db;"></i>Dimension Breakdown</h4>
+                <h4 class="mb-3"><i class="fas fa-chart-pie mr-2" style="color:var(--primary, #1a56db);"></i>Dimension Breakdown</h4>
                 <?php
                 $labels = array('skills' => 'Skills', 'education' => 'Education', 'experience' => 'Experience', 'completeness' => 'Profile Completeness', 'career' => 'Career Activity');
                 foreach ($analysis['dimensions'] as $key => $d) {
@@ -98,17 +129,17 @@ mysqli_stmt_close($stmt);
                 <?php if (!empty($analysis['strengths'])): ?>
                     <h6 class="font-weight-bold" style="font-size:0.8rem; color:#059669; text-transform:uppercase; letter-spacing:0.4px;">Strengths</h6>
                     <?php foreach ($analysis['strengths'] as $s): ?>
-                        <div class="mb-2" style="font-size:0.8rem; color:#334155;"><i class="fas fa-check-circle mr-2" style="color:#059669;"></i><?php echo htmlspecialchars($s); ?></div>
+                        <div class="mb-2 strength-item"><i class="fas fa-check-circle mr-2" style="color:#059669;"></i><?php echo htmlspecialchars($s); ?></div>
                     <?php endforeach; ?>
                 <?php endif; ?>
                 <?php if (!empty($analysis['gaps'])): ?>
                     <h6 class="font-weight-bold mt-3" style="font-size:0.8rem; color:#dc2626; text-transform:uppercase; letter-spacing:0.4px;">Gaps</h6>
                     <?php foreach ($analysis['gaps'] as $g): ?>
-                        <div class="mb-2" style="font-size:0.8rem; color:#334155;"><i class="fas fa-circle-exclamation mr-2" style="color:#dc2626;"></i><?php echo htmlspecialchars($g); ?></div>
+                        <div class="mb-2 gap-item"><i class="fas fa-circle-exclamation mr-2" style="color:#dc2626;"></i><?php echo htmlspecialchars($g); ?></div>
                     <?php endforeach; ?>
                 <?php endif; ?>
                 <?php if (empty($analysis['strengths']) && empty($analysis['gaps'])): ?>
-                    <p style="font-size:0.85rem; color:#64748b;">Complete your profile to see a detailed breakdown.</p>
+                    <p style="font-size:0.85rem; color:var(--text-muted, #64748b);">Complete your profile to see a detailed breakdown.</p>
                 <?php endif; ?>
             </div>
         </div>
@@ -121,8 +152,8 @@ mysqli_stmt_close($stmt);
             <?php foreach ($analysis['suggestions'] as $i => $s): ?>
                 <div class="col-md-6 mb-2">
                     <div class="d-flex align-items-start">
-                        <span class="badge badge-primary mr-2 mt-1" style="background:#1a56db;"><?php echo $i + 1; ?></span>
-                        <span style="font-size:0.88rem; color:#334155;"><?php echo $s; ?></span>
+                        <span class="badge badge-primary mr-2 mt-1 plan-badge"><?php echo $i + 1; ?></span>
+                        <span class="suggestion-text"><?php echo $s; ?></span>
                     </div>
                 </div>
             <?php endforeach; ?>

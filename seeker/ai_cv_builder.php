@@ -35,16 +35,19 @@ require_once __DIR__ . '/../includes/header.php';
 <style>
 /* ═══ AI CV BUILDER GLOBALS ═══ */
 .aicv-page {
-    background: #f1f5f9;
+    background: var(--bg, #f1f5f9);
+    color: var(--text, #0f172a);
     font-family: 'Plus Jakarta Sans', sans-serif;
     padding: 20px;
     min-height: 100vh;
+    transition: background-color 0.25s ease, color 0.25s ease;
 }
 .aicv-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #fff;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border, #e2e8f0);
     padding: 16px 24px;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
@@ -53,12 +56,12 @@ require_once __DIR__ . '/../includes/header.php';
 .aicv-header h1 {
     margin: 0;
     font-size: 1.5rem;
-    color: #0f172a;
+    color: var(--text, #0f172a);
     display: flex;
     align-items: center;
     gap: 10px;
 }
-.aicv-header h1 i { color: #1a56db; }
+.aicv-header h1 i { color: var(--primary, #1a56db); }
 .aicv-actions button {
     padding: 10px 16px;
     border-radius: 8px;
@@ -72,7 +75,7 @@ require_once __DIR__ . '/../includes/header.php';
 }
 .btn-save { background: #059669; color: #fff; }
 .btn-save:hover { background: #047857; }
-.btn-pdf { background: #1a56db; color: #fff; }
+.btn-pdf { background: var(--primary, #1a56db); color: #fff; }
 .btn-pdf:hover { background: #1d4ed8; }
 
 /* ═══ A4 PAPER PREVIEW ═══ */
@@ -175,6 +178,11 @@ require_once __DIR__ . '/../includes/header.php';
 </style>
 
 <div class="aicv-page">
+    <div style="margin-bottom: 14px;">
+        <a href="ai_hub.php" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--primary);font-weight:700;font-size:0.86rem;">
+            <i class="fas fa-arrow-left"></i> AI Career Center
+        </a>
+    </div>
     <div class="aicv-header">
         <h1><i class="fas fa-wand-magic-sparkles"></i> AI CV Generator</h1>
         <div class="aicv-actions">

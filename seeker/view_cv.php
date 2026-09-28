@@ -1,16 +1,31 @@
 <?php
 // Core setup: session, DB, BASE_URL, helpers
 require_once __DIR__ . '/../includes/bootstrap.php';
-if (!isset($_SESSION['id'])) {
+require_once __DIR__ . '/../admin/dbcon.php';
+
+$is_seeker  = isset($_SESSION['id']);
+$is_company = isset($_SESSION['company_id']);
+$is_admin   = isset($_SESSION['admin_username']) || isset($_SESSION['admin_id']);
+
+if (!$is_seeker && !$is_company && !$is_admin) {
     header('location: ' . BASE_URL . '/auth/login.php');
     exit();
 }
-require_once __DIR__ . '/../admin/dbcon.php';
 
-$user_id = $_SESSION['id'];
+$user_id = ($is_company || $is_admin) && isset($_GET['id']) && intval($_GET['id']) > 0
+    ? intval($_GET['id'])
+    : intval($_SESSION['id'] ?? 0);
+
+if ($user_id <= 0) {
+    die('<div style="text-align:center;padding:50px;font-family:sans-serif;"><h2>Error: No User Specified</h2><p><a href="javascript:history.back()">Go Back</a></p></div>');
+}
+
 $query = "SELECT * FROM user_info WHERE id = '$user_id'";
 $result = mysqli_query($con, $query);
 $user = mysqli_fetch_assoc($result);
+if (!$user) {
+    die('<div style="text-align:center;padding:50px;font-family:sans-serif;"><h2>User Profile Not Found</h2><p><a href="javascript:history.back()">Go Back</a></p></div>');
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -29,7 +44,7 @@ $user = mysqli_fetch_assoc($result);
             --border: #e1e8ed;
         }
         
-        * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

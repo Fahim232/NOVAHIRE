@@ -86,6 +86,21 @@ if ($has_company_apps) {
 }
 mysqli_stmt_close($comp_stmt);
 
+// Fetch hiring letters
+$hiring_letters = [];
+if ($has_company_apps) {
+    $hl_stmt = mysqli_prepare($con, "SELECT id, application_id FROM hiring_letters WHERE candidate_id = ? AND status = 'SENT'");
+    if ($hl_stmt) {
+        mysqli_stmt_bind_param($hl_stmt, "i", $user_id);
+        mysqli_stmt_execute($hl_stmt);
+        $hl_res = mysqli_stmt_get_result($hl_stmt);
+        while ($hl = mysqli_fetch_assoc($hl_res)) {
+            $hiring_letters[$hl['application_id']] = $hl['id'];
+        }
+        mysqli_stmt_close($hl_stmt);
+    }
+}
+
 if (isset($_POST['btnUpdate'])) {
     require_csrf();
 
@@ -556,6 +571,25 @@ $ma_quiz_style = [
                 }
             ?>
 
+            <?php
+                // Fetch all interviews for this seeker's applications
+                $int_by_app = [];
+                $int_fetch = mysqli_prepare($con, "SELECT i.*, cs.full_name AS interviewer_name, cs.designation AS interviewer_designation
+                                                   FROM interviews i
+                                                   LEFT JOIN company_staff cs ON i.interviewer_id = cs.id
+                                                   WHERE i.user_id = ? AND i.status = 'scheduled'
+                                                   ORDER BY i.interview_date ASC, i.interview_time ASC");
+                if ($int_fetch) {
+                    mysqli_stmt_bind_param($int_fetch, "i", $user_id);
+                    mysqli_stmt_execute($int_fetch);
+                    $int_fetch_res = mysqli_stmt_get_result($int_fetch);
+                    while ($irow = mysqli_fetch_assoc($int_fetch_res)) {
+                        $int_by_app[$irow['application_id']][] = $irow;
+                    }
+                    mysqli_stmt_close($int_fetch);
+                }
+            ?>
+
             <div class="ma-sec-head ma-fade" style="animation-delay:.12s">
                 <div class="ic"><i class="fas fa-briefcase"></i></div>
                 <div>
@@ -595,6 +629,40 @@ $ma_quiz_style = [
                             <span class="ma-tag"><i class="fas fa-calendar-alt"></i>Applied: <?php echo date('M d, Y', strtotime($app['applied_date'])); ?></span>
                         </div>
 
+                        <?php
+                            // --- Interview Schedule Card ---
+                            $app_interviews_list = $int_by_app[$app['id']] ?? [];
+                            if (!empty($app_interviews_list)):
+                        ?>
+                        <div style="background:linear-gradient(135deg, rgba(59,130,246,0.06), rgba(6,182,212,0.06)); border:1px solid rgba(59,130,246,0.2); border-radius:14px; padding:14px 18px; margin:0 0 4px;">
+                            <div style="font-size:0.78rem; font-weight:700; color:#3b82f6; text-transform:uppercase; letter-spacing:.4px; margin-bottom:8px;"><i class="fas fa-calendar-check" style="margin-right:5px;"></i>Interview Scheduled</div>
+                            <?php foreach ($app_interviews_list as $aint): ?>
+                            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:6px 0; border-bottom:1px solid rgba(59,130,246,0.1);">
+                                <div style="flex:1; min-width:180px;">
+                                    <div style="font-weight:700; font-size:0.88rem; color:var(--text);">
+                                        <?php echo htmlspecialchars($aint['title'] ?? 'Interview'); ?>
+                                        <span style="font-size:0.68rem; font-weight:600; color:#8b5cf6; background:rgba(139,92,246,0.12); padding:2px 7px; border-radius:20px; margin-left:4px;">Round <?php echo intval($aint['round_number'] ?? 1); ?></span>
+                                    </div>
+                                    <div style="font-size:0.78rem; color:var(--muted,#64748b); margin-top:3px;">
+                                        <i class="fas fa-calendar" style="margin-right:3px;"></i><?php echo date('M d, Y', strtotime($aint['interview_date'])); ?>
+                                        &middot; <i class="fas fa-clock" style="margin-right:3px;"></i><?php echo date('g:i A', strtotime($aint['interview_time'])); ?><?php echo $aint['end_time'] ? ' – ' . date('g:i A', strtotime($aint['end_time'])) : ''; ?>
+                                        &middot; <?php echo htmlspecialchars($aint['interview_type']); ?>
+                                        <?php if ($aint['duration_minutes']): ?> &middot; <?php echo intval($aint['duration_minutes']); ?>min<?php endif; ?>
+                                    </div>
+                                    <?php if (!empty($aint['interviewer_name'])): ?>
+                                    <div style="font-size:0.74rem; color:var(--muted,#64748b); margin-top:2px;"><i class="fas fa-user-tie" style="color:#d97706; margin-right:3px;"></i><?php echo htmlspecialchars($aint['interviewer_name']); ?></div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if ($aint['interview_type'] === 'Online' && !empty($aint['meeting_link'])): ?>
+                                    <a href="<?php echo htmlspecialchars($aint['meeting_link']); ?>" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:5px; padding:7px 14px; border-radius:10px; font-size:0.78rem; font-weight:700; background:linear-gradient(135deg,#3b82f6,#06b6d4); color:#fff; text-decoration:none; box-shadow:0 4px 12px rgba(59,130,246,0.3); transition:transform .2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-video"></i>Join Meeting</a>
+                                <?php elseif (!empty($aint['location'])): ?>
+                                    <span style="font-size:0.74rem; color:var(--muted,#64748b);"><i class="fas fa-map-marker-alt" style="margin-right:3px;"></i><?php echo htmlspecialchars($aint['location']); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+
                         <div class="ma-foot">
                             <a href="job_details.php?id=<?php echo $app['job_id']; ?>" class="ma-link"><i class="fas fa-eye"></i>View Job Details</a>
                             <?php
@@ -606,6 +674,16 @@ $ma_quiz_style = [
                                 </a>
                             <?php elseif ($groom_info && $groom_info['grooming_completed']): ?>
                                 <span class="ma-groom-done"><i class="fas fa-check-circle"></i>Grooming Completed</span>
+                            <?php endif; ?>
+                            <?php if (isset($hiring_letters[$app['id']])): ?>
+                                <a href="view_hiring_letter.php?id=<?php echo $hiring_letters[$app['id']]; ?>" class="ma-link" style="color: #059669; background: #d1fae5; border-color: #a7f3d0;" title="View Official Hiring Letter">
+                                    <i class="fas fa-file-contract"></i> View Hiring Letter
+                                </a>
+                            <?php endif; ?>
+                            <?php if ($app['application_status'] === 'selected' || in_array($app['pipeline_stage'] ?? '', ['offered', 'hired']) || isset($hiring_letters[$app['id']])): ?>
+                                <a href="selection_response.php?application_id=<?php echo $app['id']; ?>" class="ma-link" style="color: #059669; background: #d1fae5; border-color: #a7f3d0; font-weight: 700;" title="Confirm Readiness, Availability & Documents">
+                                    <i class="fas fa-handshake"></i> Selection Response & Onboarding
+                                </a>
                             <?php endif; ?>
                         </div>
                     </div>

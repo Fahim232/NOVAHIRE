@@ -60,27 +60,69 @@ if (isset($_POST['submit_answers'])) {
         }
     }
 }
+
+require_once __DIR__ . '/../includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>AI Mock Interview | NovaHire</title>
-    <?php require_once __DIR__ . '/../includes/links.php'; ?>
-    <?php echo ai_css_link(); ?>
-    <style>
-        body { background: #f8fafc; }
-        .cat-tab {
-            display:inline-flex; align-items:center; gap:7px;
-            padding:9px 18px; border-radius:50px; font-size:0.85rem; font-weight:600;
-            border:1.5px solid #e2e8f0; color:#475569; background:white; cursor:pointer;
-            text-decoration:none; transition:all 0.25s;
-        }
-        .cat-tab:hover { border-color:#1a56db; color:#1a56db; text-decoration:none; }
-        .cat-tab.active { background:linear-gradient(135deg,#1a56db,#0ea5e9); color:white; border-color:transparent; }
-        .res-score { font-weight:800; font-size:1.1rem; }
-    </style>
-</head>
-<body>
+<style>
+    body {
+        background: var(--ai-bg, var(--bg, #f8fafc));
+        color: var(--ai-text, var(--text, #0f172a));
+        transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .cat-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 18px;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border: 1.5px solid var(--border, #e2e8f0);
+        color: var(--text-muted, #475569);
+        background: var(--bg-card, #ffffff);
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.25s;
+    }
+    .cat-tab:hover {
+        border-color: var(--primary, #1a56db);
+        color: var(--primary, #1a56db);
+        text-decoration: none;
+    }
+    .cat-tab.active {
+        background: var(--grad, linear-gradient(135deg, #1a56db, #0ea5e9));
+        color: #ffffff;
+        border-color: transparent;
+    }
+    .res-score {
+        font-weight: 800;
+        font-size: 1.1rem;
+    }
+    .label-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .user-answer-quote {
+        background: #eef2ff;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 0.82rem;
+        color: #0c1222;
+        border: 1px solid #c7d2fe;
+    }
+    [data-theme="dark"] .user-answer-quote,
+    body.dark-theme .user-answer-quote {
+        background: rgba(30, 41, 59, 0.7);
+        color: #e2e8f0;
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+</style>
+
 <?php ai_page_header('AI Mock Interview', 'Answer real interview questions, get instant scoring and feedback to sharpen your performance.', 'clipboard-question'); ?>
 
 <div class="container" style="padding-bottom: 60px;">
@@ -99,7 +141,7 @@ if (isset($_POST['submit_answers'])) {
                 <form method="POST" action="ai_mock_interview.php?category=<?php echo urlencode($category); ?>">
                     <?php foreach ($questions as $i => $q): ?>
                         <div class="ai-qa-box">
-                            <div class="q"><span class="badge badge-primary mr-2" style="background:#1a56db;">Q<?php echo $i + 1; ?></span><?php echo htmlspecialchars($q['question']); ?></div>
+                            <div class="q"><span class="badge badge-primary mr-2" style="background:var(--primary, #1a56db); color:#fff;">Q<?php echo $i + 1; ?></span><?php echo htmlspecialchars($q['question']); ?></div>
                             <input type="hidden" name="qid_<?php echo $i; ?>" value="<?php echo htmlspecialchars($q['id']); ?>">
                             <textarea name="answer_<?php echo $i; ?>" rows="4" placeholder="Type your answer here..." required></textarea>
                             <small class="text-muted"><?php echo $q['source'] === 'db' ? '<i class="fas fa-database mr-1"></i>Real company assessment question' : '<i class="fas fa-robot mr-1"></i>AI practice question'; ?></small>
@@ -126,15 +168,15 @@ if (isset($_POST['submit_answers'])) {
                 </div>
                 <?php foreach ($results as $i => $r): ?>
                     <div class="ai-qa-box">
-                        <div class="q"><span class="badge badge-primary mr-2" style="background:#1a56db;">Q<?php echo $i + 1; ?></span><?php echo htmlspecialchars($r['question']); ?></div>
+                        <div class="q"><span class="badge badge-primary mr-2" style="background:var(--primary, #1a56db); color:#fff;">Q<?php echo $i + 1; ?></span><?php echo htmlspecialchars($r['question']); ?></div>
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="res-score" style="color:<?php echo ai_readiness_label($r['score'])[1]; ?>;"><?php echo $r['score']; ?>/100</span>
                             <span class="label-chip" style="background:<?php echo ai_readiness_label($r['score'])[1]; ?>15; color:<?php echo ai_readiness_label($r['score'])[1]; ?>;"><?php echo ai_readiness_label($r['score'])[0]; ?></span>
                         </div>
-                        <div class="mb-2" style="background:#eef2ff; padding:10px 14px; border-radius:10px; font-size:0.82rem; color:#0c1222;">
+                        <div class="mb-2 user-answer-quote">
                             <strong>Your answer:</strong> <?php echo htmlspecialchars($r['answer']); ?>
                         </div>
-                        <div style="font-size:0.85rem; color:#334155;"><?php echo $r['feedback']; ?></div>
+                        <div style="font-size:0.85rem; color:var(--ai-text, var(--text, #334155));"><?php echo $r['feedback']; ?></div>
                         <?php if (!empty($r['missing'])): ?>
                             <div class="mt-2">
                                 <small class="font-weight-bold text-danger"><i class="fas fa-list mr-1"></i>Consider mentioning:</small>
@@ -146,7 +188,7 @@ if (isset($_POST['submit_answers'])) {
                         <?php if (!empty($r['tips'])): ?>
                             <div class="mt-2">
                                 <small class="font-weight-bold" style="color:#059669;"><i class="fas fa-lightbulb mr-1"></i>Tips:</small>
-                                <ul class="mb-0 mt-1" style="font-size:0.8rem; color:#475569;">
+                                <ul class="mb-0 mt-1" style="font-size:0.8rem; color:var(--ai-muted, var(--text-muted, #475569));">
                                     <?php foreach ($r['tips'] as $t): ?><li><?php echo $t; ?></li><?php endforeach; ?>
                                 </ul>
                             </div>
@@ -163,13 +205,13 @@ if (isset($_POST['submit_answers'])) {
                 <h4 class="mb-3"><i class="fas fa-bullhorn mr-2" style="color:#d97706;"></i>Interview Tips</h4>
                 <?php foreach ($tips as $i => $t): ?>
                     <div class="d-flex align-items-start mb-2">
-                        <span class="badge badge-primary mr-2 mt-1" style="background:#d97706;"><?php echo $i + 1; ?></span>
-                        <span style="font-size:0.85rem; color:#334155;"><?php echo $t; ?></span>
+                        <span class="badge badge-primary mr-2 mt-1" style="background:#d97706; color:#fff;"><?php echo $i + 1; ?></span>
+                        <span style="font-size:0.85rem; color:var(--ai-text, var(--text, #334155));"><?php echo $t; ?></span>
                     </div>
                 <?php endforeach; ?>
             </div>
             <div class="ai-card">
-                <h4 class="mb-3"><i class="fas fa-link mr-2" style="color:#1a56db;"></i>Related</h4>
+                <h4 class="mb-3"><i class="fas fa-link mr-2" style="color:var(--primary, #1a56db);"></i>Related</h4>
                 <div class="d-flex flex-column gap-2">
                     <a href="ai_grooming_coach.php?category=<?php echo urlencode($category); ?>" class="btn-ai-outline"><i class="fas fa-graduation-cap"></i> Grooming Coach</a>
                     <a href="ai_resume_analyzer.php" class="btn-ai-outline"><i class="fas fa-file-lines"></i> Resume Analyzer</a>

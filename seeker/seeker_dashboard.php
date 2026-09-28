@@ -67,17 +67,42 @@ $no_match_jobs = [];
 if ($has_user_skills) {
     require_once __DIR__ . '/../includes/placement.php';
     $recs = nh_get_recommendations($con, $user, 50);
+    $seen_keys = [];
     foreach ($recs as $j) {
         $j['match_score'] = $j['ai']['score'];
         $j['matched_skills'] = $j['ai']['matched_skills'];
         // Re-inject location if not present, nh_get_recommendations has company_location
         $j['location'] = $j['company_location'] ?? $j['location'] ?? '';
+
+        // Safety filter against test jobs
+        if (stripos($j['job_title'], 'e2e') !== false || stripos($j['company_name'] ?? '', 'e2e') !== false) {
+            continue;
+        }
+
+        // Deduplicate identical title + company
+        $dedup_key = strtolower(trim($j['job_title'])) . '|||' . strtolower(trim($j['company_name'] ?? ''));
+        if (isset($seen_keys[$dedup_key])) {
+            continue;
+        }
+        $seen_keys[$dedup_key] = true;
+
         if ($j['ai']['score'] >= 50) {
             $rec_jobs[] = $j;
         } else {
             $no_match_jobs[] = $j;
         }
     }
+
+    // If fewer than 6 high-match jobs, backfill with relevant skill matches (score >= 25 with matched skills)
+    if (count($rec_jobs) < 6 && !empty($no_match_jobs)) {
+        foreach ($no_match_jobs as $nm) {
+            if ($nm['match_score'] >= 25 && !empty($nm['matched_skills'])) {
+                $rec_jobs[] = $nm;
+                if (count($rec_jobs) >= 6) break;
+            }
+        }
+    }
+
     $rec_jobs = array_slice($rec_jobs, 0, 6);
 }
 

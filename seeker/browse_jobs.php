@@ -45,7 +45,7 @@ if ($type_filter != 'all') {
 }
 
 // Fetch jobs
-$jobs_query = "SELECT cj.*, c.company_name, c.industry, c.logo,
+$jobs_query = "SELECT cj.*, c.company_name, c.industry, c.logo, c.is_verified, c.verification_status,
                    (SELECT COUNT(*) FROM company_job_questions WHERE job_id = cj.id) as quiz_count,
                    (SELECT COUNT(*) FROM job_applications WHERE job_id = cj.id) as applicant_count
                    FROM company_jobs cj
@@ -79,11 +79,102 @@ if ($jobs_result) {
 $categories_query = "SELECT DISTINCT job_category FROM company_jobs WHERE status = 'active'";
 $categories_result = mysqli_query($con, $categories_query);
 
-// Count saved jobs for the hero stat
+// Count saved jobs for the hero stat and prefetch user quiz/application info
 $saved_count = 0;
+$user_saved_job_ids = [];
+$user_quiz_data = [];
+
 if (isset($_SESSION['id'])) {
-    $sc = mysqli_query($con, "SELECT COUNT(*) AS cnt FROM saved_jobs WHERE user_id=" . intval($_SESSION['id']));
+    $uid = intval($_SESSION['id']);
+    $sc = mysqli_query($con, "SELECT COUNT(*) AS cnt FROM saved_jobs WHERE user_id=" . $uid);
     if ($sc) { $saved_count = intval(mysqli_fetch_assoc($sc)['cnt']); }
+
+    $sj_q = mysqli_query($con, "SELECT job_id FROM saved_jobs WHERE user_id=" . $uid);
+    if ($sj_q) {
+        while ($sj = mysqli_fetch_assoc($sj_q)) {
+            $user_saved_job_ids[intval($sj['job_id'])] = true;
+        }
+    }
+
+    // Prefetch job applications
+    $app_q = mysqli_query($con, "SELECT job_id, quiz_status, quiz_score, cover_letter, cv_file, ai_cv_id, application_status FROM job_applications WHERE user_id=" . $uid);
+    if ($app_q) {
+        while ($app = mysqli_fetch_assoc($app_q)) {
+            $jid = intval($app['job_id']);
+            if (!isset($user_quiz_data[$jid])) {
+                $user_quiz_data[$jid] = [
+                    'attended'     => false,
+                    'passed'       => false,
+                    'latest_score' => null,
+                    'attempts'     => 0,
+                    'has_applied'  => false,
+                ];
+            }
+            if ($app['quiz_status'] === 'passed') {
+                $user_quiz_data[$jid]['attended'] = true;
+                $user_quiz_data[$jid]['passed'] = true;
+            } elseif ($app['quiz_status'] === 'failed' || ($app['quiz_score'] !== null && $app['quiz_score'] !== '')) {
+                $user_quiz_data[$jid]['attended'] = true;
+            }
+            if ($app['quiz_score'] !== null && $app['quiz_score'] !== '') {
+                $user_quiz_data[$jid]['latest_score'] = floatval($app['quiz_score']);
+            }
+            if (!empty($app['cover_letter']) || !empty($app['cv_file']) || !empty($app['ai_cv_id'])) {
+                $user_quiz_data[$jid]['has_applied'] = true;
+            }
+        }
+    }
+
+    // Prefetch quiz attempts
+    $att_q = mysqli_query($con, "SELECT job_id, score_percentage, attempt_date FROM job_quiz_attempts WHERE user_id=" . $uid . " ORDER BY attempt_date ASC");
+    if ($att_q) {
+        while ($att = mysqli_fetch_assoc($att_q)) {
+            $jid = intval($att['job_id']);
+            if (!isset($user_quiz_data[$jid])) {
+                $user_quiz_data[$jid] = [
+                    'attended'     => false,
+                    'passed'       => false,
+                    'latest_score' => null,
+                    'attempts'     => 0,
+                    'has_applied'  => false,
+                ];
+            }
+            $user_quiz_data[$jid]['attended'] = true;
+            $user_quiz_data[$jid]['attempts']++;
+            $score = floatval($att['score_percentage']);
+            $user_quiz_data[$jid]['latest_score'] = $score;
+            if ($score >= 60) {
+                $user_quiz_data[$jid]['passed'] = true;
+            }
+        }
+    }
+
+    // Prefetch assessment sessions (completed, timed_out, terminated)
+    $sess_q = mysqli_query($con, "SELECT job_id, status, score_final FROM assessment_sessions WHERE user_id=" . $uid . " ORDER BY started_at ASC");
+    if ($sess_q) {
+        while ($sess = mysqli_fetch_assoc($sess_q)) {
+            $jid = intval($sess['job_id']);
+            if (!isset($user_quiz_data[$jid])) {
+                $user_quiz_data[$jid] = [
+                    'attended'     => false,
+                    'passed'       => false,
+                    'latest_score' => null,
+                    'attempts'     => 0,
+                    'has_applied'  => false,
+                ];
+            }
+            if (in_array($sess['status'], ['completed', 'timed_out', 'terminated'])) {
+                $user_quiz_data[$jid]['attended'] = true;
+                if ($sess['score_final'] !== null && $sess['score_final'] !== '') {
+                    $score = floatval($sess['score_final']);
+                    $user_quiz_data[$jid]['latest_score'] = $score;
+                    if ($score >= 60) {
+                        $user_quiz_data[$jid]['passed'] = true;
+                    }
+                }
+            }
+        }
+    }
 }
 
 // Total live jobs
@@ -292,7 +383,13 @@ $type_color = [
         .bj-badge.cat { color: var(--primary); background: var(--bj-grad-soft); border: 1px solid rgba(6,182,212,.25); }
         .bj-badge.quiz-ok { color: #047857; background: rgba(5,150,105,.1); border: 1px solid rgba(5,150,105,.22); }
         .bj-badge.quiz-req { color: #b45309; background: rgba(217,119,6,.1); border: 1px solid rgba(217,119,6,.24); }
+        .bj-badge.quiz-given { color: #6366f1; background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.26); }
+        .bj-badge.applied { color: #059669; background: rgba(5,150,105,.12); border: 1px solid rgba(5,150,105,.28); }
+        .bj-badge.quiz-exhausted { color: #dc2626; background: rgba(220,38,38,.1); border: 1px solid rgba(220,38,38,.24); }
         .bj-badge.noquiz { color: var(--text-muted); background: var(--bg-hover); border: 1px solid var(--border-light); }
+        [data-theme="dark"] .bj-badge.quiz-given { color: #a5b4fc; background: rgba(99,102,241,.18); border-color: rgba(99,102,241,.35); }
+        [data-theme="dark"] .bj-badge.applied { color: #6ee7b7; background: rgba(5,150,105,.18); border-color: rgba(5,150,105,.35); }
+        [data-theme="dark"] .bj-badge.quiz-exhausted { color: #fca5a5; background: rgba(220,38,38,.18); border-color: rgba(220,38,38,.35); }
         .bj-badge.ai {
             color: #0ea5e9; background: rgba(6,182,212,.1);
             border: 1px solid rgba(6,182,212,.28);
@@ -343,6 +440,46 @@ $type_color = [
         .bj-apply:hover { transform: translateY(-2px); background-position: 100% 50%; color: #fff; text-decoration: none; box-shadow: 0 16px 30px -12px rgba(217,70,239,.65); }
         .bj-apply.quiz { background: linear-gradient(135deg, #f6ad55, #ed8936); background-size: 150% 150%; box-shadow: 0 10px 22px -10px rgba(237,137,54,.6); }
         .bj-apply.quiz:hover { box-shadow: 0 16px 30px -12px rgba(217,119,6,.65); }
+        .bj-apply.quiz-given {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background-size: 150% 150%;
+            box-shadow: 0 10px 22px -10px rgba(99,102,241,.6);
+        }
+        .bj-apply.quiz-given:hover {
+            box-shadow: 0 16px 30px -12px rgba(139,92,246,.65);
+            transform: translateY(-2px);
+            color: #fff;
+        }
+        .bj-apply.quiz-passed {
+            background: linear-gradient(135deg, #059669, #0d9488);
+            background-size: 150% 150%;
+            box-shadow: 0 10px 22px -10px rgba(13,148,136,.55);
+        }
+        .bj-apply.quiz-passed:hover {
+            box-shadow: 0 16px 30px -12px rgba(5,150,105,.65);
+            transform: translateY(-2px);
+            color: #fff;
+        }
+        .bj-apply.applied {
+            background: linear-gradient(135deg, #10b981, #059669);
+            background-size: 150% 150%;
+            box-shadow: 0 10px 22px -10px rgba(16,185,129,.5);
+        }
+        .bj-apply.applied:hover {
+            box-shadow: 0 16px 30px -12px rgba(16,185,129,.65);
+            transform: translateY(-2px);
+            color: #fff;
+        }
+        .bj-apply.quiz-exhausted {
+            background: linear-gradient(135deg, #64748b, #475569);
+            background-size: 150% 150%;
+            box-shadow: 0 10px 22px -10px rgba(100,116,139,.5);
+        }
+        .bj-apply.quiz-exhausted:hover {
+            box-shadow: 0 16px 30px -12px rgba(71,85,105,.65);
+            transform: translateY(-2px);
+            color: #fff;
+        }
 
         /* ── Empty state ── */
         .bj-empty {
@@ -481,7 +618,14 @@ $type_color = [
 
                     <div class="bj-body">
                         <div class="bj-top">
-                            <span class="bj-company"><i class="fas fa-building"></i><?php echo htmlspecialchars($job['company_name']); ?></span>
+                            <span class="bj-company">
+                                <i class="fas fa-building"></i><?php echo htmlspecialchars($job['company_name']); ?>
+                                <?php if (!empty($job['is_verified']) || ($job['verification_status'] ?? '') === 'verified'): ?>
+                                    <span class="badge badge-success ml-1" style="background:#059669;color:#fff;font-size:0.68rem;padding:2px 7px;border-radius:999px;display:inline-flex;align-items:center;gap:3px;" title="Verified Business Entity">
+                                        <i class="fas fa-certificate" style="color:#fbbf24;font-size:0.65rem;"></i> Verified
+                                    </span>
+                                <?php endif; ?>
+                            </span>
                             <span style="font-size:.72rem;color:var(--text-light);font-weight:700;"><i class="fas fa-industry mr-1"></i><?php echo htmlspecialchars($job['industry']); ?></span>
                         </div>
                         <a href="job_details.php?id=<?php echo $job['id']; ?>" class="bj-title"><?php echo htmlspecialchars($job['job_title']); ?></a>
@@ -512,16 +656,38 @@ $type_color = [
 
                         <div class="bj-bottom">
                             <span class="bj-badge cat"><i class="fas fa-tag"></i><?php echo htmlspecialchars($job['job_category']); ?></span>
-                            <?php if ($job['quiz_count'] > 0): ?>
-                                <?php
-                                $quiz_passed = false;
-                                if (isset($_SESSION['id'])) {
-                                    $chk_quiz = mysqli_query($con, "SELECT * FROM job_applications WHERE user_id=".$_SESSION['id']." AND job_id=".$job['id']." AND quiz_status='passed'");
-                                    $quiz_passed = mysqli_num_rows($chk_quiz) > 0;
-                                }
-                                ?>
-                                <?php if ($quiz_passed): ?>
+                            <?php
+                            $jid = intval($job['id']);
+                            $user_job_info = isset($user_quiz_data[$jid]) ? $user_quiz_data[$jid] : [
+                                'attended'     => false,
+                                'passed'       => false,
+                                'latest_score' => null,
+                                'attempts'     => 0,
+                                'has_applied'  => false,
+                            ];
+                            if (!empty($_SESSION['quiz_taken_' . $jid]) || !empty($_SESSION['quiz_submitted_' . $jid])) {
+                                $user_job_info['attended'] = true;
+                            }
+
+                            $has_quiz    = ($job['quiz_count'] > 0);
+                            $q_attended  = $user_job_info['attended'];
+                            $q_passed    = $user_job_info['passed'];
+                            $q_score     = $user_job_info['latest_score'];
+                            $q_exhausted = ($user_job_info['attempts'] >= 2 && !$q_passed);
+                            $has_applied = $user_job_info['has_applied'];
+                            $is_saved    = !empty($user_saved_job_ids[$jid]);
+                            ?>
+                            <?php if ($has_applied): ?>
+                                <span class="bj-badge applied"><i class="fas fa-check-double"></i>Applied</span>
+                            <?php elseif ($has_quiz): ?>
+                                <?php if ($q_passed): ?>
                                     <span class="bj-badge quiz-ok"><i class="fas fa-check-circle"></i>Quiz Passed</span>
+                                <?php elseif ($q_attended): ?>
+                                    <?php if ($q_exhausted): ?>
+                                        <span class="bj-badge quiz-exhausted"><i class="fas fa-ban"></i>Attempts Exhausted</span>
+                                    <?php else: ?>
+                                        <span class="bj-badge quiz-given"><i class="fas fa-clipboard-check"></i>Quiz Given<?php echo ($q_score !== null) ? ' (' . round($q_score) . '%)' : ''; ?></span>
+                                    <?php endif; ?>
                                 <?php else: ?>
                                     <span class="bj-badge quiz-req"><i class="fas fa-clipboard-check"></i>Quiz Required</span>
                                 <?php endif; ?>
@@ -536,13 +702,6 @@ $type_color = [
                     </div>
 
                     <div class="bj-side">
-                        <?php
-                        $is_saved = false;
-                        if (isset($_SESSION['id'])) {
-                            $chk = mysqli_query($con, "SELECT id FROM saved_jobs WHERE user_id=".$_SESSION['id']." AND job_id=".$job['id']);
-                            $is_saved = mysqli_num_rows($chk) > 0;
-                        }
-                        ?>
                         <?php if ($ai_match): ?>
                             <div class="bj-ai-ring" title="<?php echo $ai_match['score']; ?>% match with your profile">
                                 <svg width="64" height="64" viewBox="0 0 64 64">
@@ -565,10 +724,30 @@ $type_color = [
                             <i class="fa<?php echo $is_saved ? 's' : 'r'; ?> fa-heart"></i>
                         </button>
 
-                        <?php if ($job['quiz_count'] > 0): ?>
-                            <a href="job_details.php?id=<?php echo $job['id']; ?>" class="bj-apply quiz">
-                                <i class="fas fa-clipboard-check"></i>Quiz &amp; Apply
+                        <?php if ($has_applied): ?>
+                            <a href="job_details.php?id=<?php echo $job['id']; ?>" class="bj-apply applied" title="You have already applied for this job">
+                                <i class="fas fa-check-double"></i>Applied
                             </a>
+                        <?php elseif ($has_quiz): ?>
+                            <?php if ($q_passed): ?>
+                                <a href="job_details.php?id=<?php echo $job['id']; ?>" class="bj-apply quiz-passed" title="Quiz passed! Click to submit your application">
+                                    <i class="fas fa-file-signature"></i>Apply Now
+                                </a>
+                            <?php elseif ($q_attended): ?>
+                                <?php if ($q_exhausted): ?>
+                                    <a href="job_details.php?id=<?php echo $job['id']; ?>" class="bj-apply quiz-exhausted" title="All assessment attempts used for this job">
+                                        <i class="fas fa-ban"></i>Quiz Given
+                                    </a>
+                                <?php else: ?>
+                                    <a href="job_details.php?id=<?php echo $job['id']; ?>" class="bj-apply quiz-given" title="Assessment completed - click to view details or retake">
+                                        <i class="fas fa-clipboard-check"></i>Quiz Given
+                                    </a>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <a href="job_details.php?id=<?php echo $job['id']; ?>" class="bj-apply quiz" title="Timed quiz required to apply">
+                                    <i class="fas fa-clipboard-check"></i>Quiz &amp; Apply
+                                </a>
+                            <?php endif; ?>
                         <?php else: ?>
                             <a href="job_details.php?id=<?php echo $job['id']; ?>" class="bj-apply">
                                 <i class="fas fa-arrow-right"></i>Apply Now

@@ -9,6 +9,17 @@ $selectquery = " select * from user_info where id='$id' ";
 $query = mysqli_query($con, $selectquery);
 $result = mysqli_fetch_assoc($query);
 
+// Fetch Verified Skills
+$vs_sql = "SELECT vs.skill_level, s.name FROM verified_skills vs JOIN skills s ON vs.skill_id = s.id WHERE vs.user_id = ?";
+$vs_stmt = mysqli_prepare($con, $vs_sql);
+mysqli_stmt_bind_param($vs_stmt, "i", $id);
+mysqli_stmt_execute($vs_stmt);
+$verified_skills_result = mysqli_stmt_get_result($vs_stmt);
+$verified_skills = [];
+while ($vs_row = mysqli_fetch_assoc($verified_skills_result)) {
+    $verified_skills[] = $vs_row;
+}
+
 // Logic remains same, only UI changes
 if (isset($_POST['btnUpdate'])) {
     $name = mysqli_real_escape_string($con, $_POST['name']);
@@ -535,6 +546,11 @@ if (isset($_POST['btnUpdate'])) {
                 <div class="profile-hero-pills">
                     <span class="profile-pill pill-active"><i class="fas fa-circle" style="font-size:0.45rem;"></i> Active</span>
                     <span class="profile-pill pill-role"><i class="fas fa-briefcase"></i> Job Seeker</span>
+                    <?php foreach ($verified_skills as $vs): ?>
+                        <span class="profile-pill" style="background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3);" title="Verified: <?php echo htmlspecialchars($vs['skill_level']); ?>">
+                            <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($vs['name']); ?>
+                        </span>
+                    <?php endforeach; ?>
                 </div>
             </div>
             <div class="profile-hero-actions">
