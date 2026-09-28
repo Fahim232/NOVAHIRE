@@ -257,12 +257,13 @@ function _llm_generate($name, $skills, $degree, $exp, $about,
             . 'Output plain text (no markdown, no bullet lists). '
             . 'Structure: greeting, 2-3 body paragraphs, closing, sign-off. Max 250 words.';
 
+    $matched_skills_str = is_array($matched) ? implode(', ', $matched) : (string)$matched;
     $prompt = "Job title: {$job_title}\n"
             . "Company: {$company}\n"
             . "Category: {$job_cat}\n"
             . "Candidate name: {$name}\n"
             . "Skills: " . implode(', ', $skills) . "\n"
-            . "Matched skills: {$matched}\n"
+            . "Matched skills: {$matched_skills_str}\n"
             . "Degree: {$degree}\n"
             . "Experience: {$exp}\n"
             . "About: {$about}\n"

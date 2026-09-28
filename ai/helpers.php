@@ -41,13 +41,29 @@ function ai_page_header($title, $subtitle = '', $icon = 'fa-robot') {
     $script = isset($_SERVER['PHP_SELF']) ? $_SERVER['PHP_SELF'] : '';
     $isAdmin = strpos($script, '/admin/') !== false;
     $backUrl = $isAdmin ? ai_base_url() . 'admin/dashboard.php' : ai_base_url() . 'seeker/ai_hub.php';
-    $backLabel = $isAdmin ? 'Admin Dashboard' : 'AI Hub';
-    echo '<nav style="position:sticky;top:0;z-index:1030;background:#0f172a;border-bottom:1px solid rgba(255,255,255,.06);padding:0 20px">';
-    echo '<div style="max-width:1080px;margin:0 auto;display:flex;align-items:center;height:52px;gap:12px">';
-    echo '<a href="' . $backUrl . '" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:#e2e8f0;font-weight:600;font-size:.85rem;opacity:.85"><i class="fas fa-arrow-left"></i> ' . $backLabel . '</a>';
-    echo '<span style="color:#475569;font-size:.7rem"><i class="fas fa-chevron-right"></i></span>';
-    echo '<span style="font-weight:700;color:#fff;font-size:.85rem">' . htmlspecialchars($title) . '</span>';
-    echo '</div></nav>';
+    $backLabel = $isAdmin ? 'Admin Dashboard' : 'AI Career Center';
+
+    if (!$isAdmin) {
+        echo '<div class="ai-breadcrumb-strip" style="background:var(--bg-card);border-bottom:1px solid var(--border);padding:10px 0;transition:all 0.2s;">';
+        echo '<div class="container d-flex align-items-center justify-content-between">';
+        echo '<div class="d-flex align-items-center" style="gap:8px;font-size:0.86rem;">';
+        echo '<a href="' . $backUrl . '" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--primary);font-weight:700;"><i class="fas fa-arrow-left"></i> ' . $backLabel . '</a>';
+        echo '<span style="color:var(--border);"><i class="fas fa-chevron-right" style="font-size:0.7rem;"></i></span>';
+        echo '<span style="font-weight:700;color:var(--text);">' . htmlspecialchars($title) . '</span>';
+        echo '</div>';
+        echo '<div class="d-none d-md-flex align-items-center" style="gap:8px;font-size:0.78rem;">';
+        echo '<span class="badge badge-pill px-3 py-1" style="background:var(--bg-hover);color:var(--text-muted);border:1px solid var(--border);font-weight:600;"><i class="fas fa-sparkles mr-1" style="color:var(--primary);"></i>' . $chip . '</span>';
+        echo '</div>';
+        echo '</div></div>';
+    } else {
+        echo '<nav style="position:sticky;top:0;z-index:1030;background:#0f172a;border-bottom:1px solid rgba(255,255,255,.06);padding:0 20px">';
+        echo '<div style="max-width:1080px;margin:0 auto;display:flex;align-items:center;height:52px;gap:12px">';
+        echo '<a href="' . $backUrl . '" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:#e2e8f0;font-weight:600;font-size:.85rem;opacity:.85"><i class="fas fa-arrow-left"></i> ' . $backLabel . '</a>';
+        echo '<span style="color:#475569;font-size:.7rem"><i class="fas fa-chevron-right"></i></span>';
+        echo '<span style="font-weight:700;color:#fff;font-size:.85rem">' . htmlspecialchars($title) . '</span>';
+        echo '</div></nav>';
+    }
+
     echo '<div class="ai-hero"><div class="container text-center">';
     echo '<span class="badge-ai"><i class="fas fa-' . $icon . ' mr-2"></i>' . $chip . '</span>';
     echo '<h1 class="mt-3 mb-2">' . htmlspecialchars($title) . '</h1>';
@@ -66,7 +82,7 @@ function ai_score_ring($score, $label = '', $size = 130) {
     $color = ai_readiness_label($score)[1];
     echo '<div class="ai-score-ring" style="width:' . $size . 'px;height:' . $size . 'px;">';
     echo '<svg viewBox="0 0 ' . $size . ' ' . $size . '" style="width:' . $size . 'px;height:' . $size . 'px;">';
-    echo '<circle class="ring-bg" cx="' . ($size / 2) . '" cy="' . ($size / 2) . '" r="' . $r . '"/>';
+    echo '<circle class="ring-bg" cx="' . ($size / 2) . '" cy="' . ($size / 2) . '" r="' . $r . '" style="stroke:var(--ai-border, #e2e8f0);"/>';
     echo '<circle class="ring-fill" cx="' . ($size / 2) . '" cy="' . ($size / 2) . '" r="' . $r . '" style="stroke:' . $color . ';" stroke-dasharray="' . $circ . '" stroke-dashoffset="' . $offset . '"/>';
     echo '</svg>';
     echo '<div class="ai-score-center"><span class="val">' . $score . '%</span>';

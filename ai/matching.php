@@ -75,19 +75,25 @@ function ai_match_profile_job($user, $job) {
     }
 
     // Skill Score Calculation
-    $required_match_ratio = count($required_skills) > 0 ? (count($matched_required) / count($required_skills)) : 1.0;
-    
-    // Apply a square-root curve to the required match ratio.
-    // In real-world hiring, fulfilling 50% of a job's requirements is often a solid match, 
-    // rather than a failing grade. sqrt(0.5) gives ~0.70.
-    $curved_ratio = sqrt($required_match_ratio);
-    
-    // Preferred matches act as a bonus (up to 15%)
-    $bonus_ratio = count($matched_preferred) * 0.05;
-    
-    $skill_score_raw = ($curved_ratio + $bonus_ratio) * 100;
-    
-    $skill_score = min(100, round($skill_score_raw));
+    if (count($required_skills) > 0) {
+        $required_match_ratio = count($matched_required) / count($required_skills);
+        // Apply a square-root curve to the required match ratio.
+        $curved_ratio = sqrt($required_match_ratio);
+        // Preferred matches act as a bonus (up to 15%)
+        $bonus_ratio = count($matched_preferred) * 0.05;
+        $skill_score_raw = ($curved_ratio + $bonus_ratio) * 100;
+        $skill_score = min(100, round($skill_score_raw));
+    } elseif (count($matched_preferred) > 0) {
+        $required_match_ratio = 0.0;
+        $curved_ratio = 0.0;
+        $bonus_ratio = min(0.60, count($matched_preferred) * 0.15);
+        $skill_score = round($bonus_ratio * 100);
+    } else {
+        $required_match_ratio = 0.0;
+        $curved_ratio = 0.0;
+        $bonus_ratio = 0.0;
+        $skill_score = 0;
+    }
     
     // Critical Skill Penalty
     $penalty = 0;
