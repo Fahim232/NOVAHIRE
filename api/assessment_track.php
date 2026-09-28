@@ -64,10 +64,10 @@ if ($session['status'] !== 'in_progress') {
 // Risk weights
 $risk_weights = [
     'TAB_SWITCH'      => 15,
-    'FULLSCREEN_EXIT' => 20,
-    'BLUR'            => 10,
-    'COPY'            => 25,
-    'PASTE'           => 25,
+    'FULLSCREEN_EXIT' => 15,
+    'BLUR'            => 5,
+    'COPY'            => 20,
+    'PASTE'           => 20,
     'RIGHT_CLICK'     => 5,
     'DEVTOOLS'        => 30,
     'RESIZE'          => 5,

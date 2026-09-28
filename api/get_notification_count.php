@@ -19,9 +19,8 @@ if (!isset($_SESSION['id'])) {
     exit();
 }
 
-// Include required modules
-include __DIR__ . '/../admin/dbcon.php';
-include __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../admin/dbcon.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 $user_id = intval($_SESSION['id']);
 $count   = get_unread_count($con, 'user', $user_id);

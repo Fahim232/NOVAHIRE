@@ -9,8 +9,8 @@ if (!isset($_SESSION['id']) && !isset($_SESSION['company_id'])) {
     exit();
 }
 
-include __DIR__ . '/../admin/dbcon.php';
-include __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../admin/dbcon.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request method']);

@@ -63,7 +63,7 @@ if ($session['status'] !== 'in_progress') {
 // ── 2. Server-side time enforcement (per question) ──
 $started_ts     = !empty($session['question_started_ts']) ? intval($session['question_started_ts']) : time();
 $elapsed        = max(0, time() - $started_ts);
-$time_remaining = 0;
+$time_remaining = 0; // Will be updated if moving to next question
 
 // ── 3. Record the answer (if a question_id was provided) ──
 if ($question_id > 0) {
@@ -138,12 +138,13 @@ if (!$completed) {
     if ($q_result && mysqli_num_rows($q_result) > 0) {
         $q_data = mysqli_fetch_assoc($q_result);
 
+        $time_remaining = intval($q_data['time_limit']);
         $next_question = [
             'id'            => intval($q_data['id']),
             'question_type' => $q_data['question_type'],
             'question'      => $q_data['question'],
             'question_number' => $current_index + 1,
-            'time_limit'    => intval($q_data['time_limit']),
+            'time_limit'    => $time_remaining,
             'marks'         => intval($q_data['marks']),
         ];
 
