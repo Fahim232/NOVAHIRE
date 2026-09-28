@@ -268,10 +268,18 @@ Track your application status from your dashboard. Good luck!
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TEMPLATE: Interview Scheduled
+   TEMPLATE: Interview Scheduled (to Candidate)
+   Phase 2: Now includes duration, round, and interviewer name.
    ═══════════════════════════════════════════════════════════════ */
-function send_interview_scheduled($to, $username, $job_title, $company_name, $date, $time, $type, $meeting_link = '') {
+function send_interview_scheduled($to, $username, $job_title, $company_name, $date, $time, $type, $meeting_link = '', $extra = []) {
+    $round    = $extra['round'] ?? '';
+    $duration = $extra['duration'] ?? '';
+    $interviewer = $extra['interviewer_name'] ?? '';
+    $end_time = $extra['end_time'] ?? '';
+    $location = $extra['location'] ?? '';
+
     $subject = "Interview Scheduled - {$job_title} at {$company_name}";
+    $time_display = htmlspecialchars($time) . ($end_time ? ' – ' . htmlspecialchars($end_time) : '');
     $body = email_header("Interview Scheduled") . email_body_wrapper('
 <h2 style="color:#1e293b;margin:0 0 14px;font-size:19px;">Interview Scheduled!</h2>
 <p style="color:#475569;font-size:14px;line-height:1.75;margin:0 0 18px;">
@@ -280,15 +288,58 @@ Hello <strong>' . htmlspecialchars($username) . '</strong>, your interview has b
 <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:0 12px 12px 0;padding:18px;margin:18px 0;">
 ' . email_info_box("Position", htmlspecialchars($job_title)) .
 email_info_box("Company", htmlspecialchars($company_name)) .
+($round ? email_info_box("Round", htmlspecialchars($round)) : '') .
 email_info_box("Date", htmlspecialchars($date)) .
-email_info_box("Time", htmlspecialchars($time)) .
+email_info_box("Time", $time_display) .
+($duration ? email_info_box("Duration", htmlspecialchars($duration) . ' minutes') : '') .
 email_info_box("Type", htmlspecialchars($type)) .
-($meeting_link ? email_info_box("Link", '<a href="' . htmlspecialchars($meeting_link) . '" style="color:#3b82f6;">Join Meeting</a>') : '') . '
+($interviewer ? email_info_box("Interviewer", htmlspecialchars($interviewer)) : '') .
+($meeting_link ? email_info_box("Link", '<a href="' . htmlspecialchars($meeting_link) . '" style="color:#3b82f6;">Join Meeting</a>') : '') .
+($location && $type !== 'Online' ? email_info_box("Location", htmlspecialchars($location)) : '') . '
 </div>
 <p style="color:#475569;font-size:14px;line-height:1.75;margin:18px 0 0;">
 Please be available at the scheduled time. Good luck!
 </p>') . email_footer();
     return send_email($to, $subject, $body, '', 'interview_scheduled');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TEMPLATE: Interviewer Assigned (to Staff Member)
+   Phase 2: Notifies the assigned interviewer about their schedule.
+   Phase 3: Includes tokenized feedback submission link.
+   ═══════════════════════════════════════════════════════════════ */
+function send_interviewer_assigned($to, $interviewer_name, $candidate_name, $job_title, $company_name, $date, $time, $end_time, $duration, $round, $type, $meeting_link = '', $location = '', $access_token = '') {
+    $subject = "Interview Assignment - {$candidate_name} for {$job_title}";
+    $time_display = htmlspecialchars($time) . ($end_time ? ' – ' . htmlspecialchars($end_time) : '');
+    
+    $feedback_btn = '';
+    if (!empty($access_token)) {
+        $feedback_url = BASE_URL . "/company/interviewer_feedback.php?token=" . urlencode($access_token);
+        $feedback_btn = email_btn($feedback_url, 'Submit Feedback (After Interview)');
+    }
+
+    $body = email_header("Interview Assignment") . email_body_wrapper('
+<h2 style="color:#1e293b;margin:0 0 14px;font-size:19px;">Interview Assignment</h2>
+<p style="color:#475569;font-size:14px;line-height:1.75;margin:0 0 18px;">
+Hello <strong>' . htmlspecialchars($interviewer_name) . '</strong>, you have been assigned as the interviewer for an upcoming interview.
+</p>
+<div style="background:#eff6ff;border-left:4px solid #3b82f6;border-radius:0 12px 12px 0;padding:18px;margin:18px 0;">
+' . email_info_box("Candidate", htmlspecialchars($candidate_name)) .
+email_info_box("Position", htmlspecialchars($job_title)) .
+email_info_box("Company", htmlspecialchars($company_name)) .
+($round ? email_info_box("Round", htmlspecialchars($round)) : '') .
+email_info_box("Date", htmlspecialchars($date)) .
+email_info_box("Time", $time_display) .
+email_info_box("Duration", htmlspecialchars($duration) . ' minutes') .
+email_info_box("Type", htmlspecialchars($type)) .
+($meeting_link ? email_info_box("Meeting Link", '<a href="' . htmlspecialchars($meeting_link) . '" style="color:#3b82f6;">Join Meeting</a>') : '') .
+($location && $type !== 'Online' ? email_info_box("Location", htmlspecialchars($location)) : '') . '
+</div>
+<p style="color:#475569;font-size:14px;line-height:1.75;margin:18px 0 0;">
+Please be prepared and available at the scheduled time. When the interview is complete, please submit your feedback.
+</p>
+' . $feedback_btn) . email_footer();
+    return send_email($to, $subject, $body, '', 'interviewer_assigned');
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -397,3 +448,26 @@ email_info_box("Category", htmlspecialchars($category)) . '
 ' . email_btn(BASE_URL . '/admin/mentors.php', 'Review Application')) . email_footer();
     return send_email($to, $subject, $body, '', 'mentor_application');
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   TEMPLATE: Staff Invitation
+   ═══════════════════════════════════════════════════════════════ */
+function send_staff_invitation_email($to, $company_name, $staff_name, $role, $activation_link, $expires_at) {
+    $subject = "You have been invited to join {$company_name} on NovaHire";
+    $body = email_header("Staff Invitation") . email_body_wrapper('
+<h2 style="color:#1e293b;margin:0 0 14px;font-size:19px;">Hello ' . htmlspecialchars($staff_name) . '!</h2>
+<p style="color:#475569;font-size:14px;line-height:1.75;margin:0 0 18px;">
+You have been invited to join <strong>' . htmlspecialchars($company_name) . '</strong> on NovaHire as a <strong>' . htmlspecialchars($role) . '</strong>.
+</p>
+<div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:0 12px 12px 0;padding:18px;margin:18px 0;">
+' . email_info_box("Company", htmlspecialchars($company_name)) .
+email_info_box("Role", htmlspecialchars($role)) .
+email_info_box("Link Expires", htmlspecialchars($expires_at)) . '
+</div>
+<p style="color:#475569;font-size:14px;line-height:1.75;margin:18px 0 0;">
+Please click the button below to activate your account and set your password. This link is single-use and will expire.
+</p>
+' . email_btn($activation_link, 'Activate Account')) . email_footer();
+    return send_email($to, $subject, $body, '', 'staff_invitation');
+}
+

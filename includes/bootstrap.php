@@ -128,6 +128,16 @@ if (!function_exists('get_resume_data') && file_exists(__DIR__ . '/resume_builde
     require_once __DIR__ . '/resume_builder.php';
 }
 
+/* ── 10. Company Verification & Access Gating ────────────────────────────── */
+if (!function_exists('is_company_verified') && file_exists(__DIR__ . '/company_verification.php')) {
+    require_once __DIR__ . '/company_verification.php';
+}
+
+/* ── 11. AI CV Analyzer & Screening Engine ───────────────────────────────── */
+if (!function_exists('nh_analyze_application_cv') && file_exists(__DIR__ . '/ai_cv_screener.php')) {
+    require_once __DIR__ . '/ai_cv_screener.php';
+}
+
 /* ── 5. Auth guards ───────────────────────────────────────────────────────── */
 function require_seeker_login() {
     global $con;
@@ -172,5 +182,27 @@ function require_admin_login() {
     if (!isset($_SESSION['admin_username'])) {
         header('Location: ' . BASE_URL . '/admin/admin_login.php');
         exit;
+    }
+}
+
+function require_staff_login() {
+    global $con;
+    if (!isset($_SESSION['staff_id']) || $_SESSION['user_type'] !== 'staff') {
+        header('Location: ' . BASE_URL . '/auth/staff_login.php');
+        exit;
+    }
+    if (isset($con) && $con) {
+        $check = mysqli_query($con, "SELECT id, status FROM company_staff WHERE id = " . (int)$_SESSION['staff_id']);
+        if (!$check || mysqli_num_rows($check) === 0) {
+            unset($_SESSION['staff_id'], $_SESSION['staff_name'], $_SESSION['company_id'], $_SESSION['user_type']);
+            header('Location: ' . BASE_URL . '/auth/staff_login.php?error=' . urlencode('Session expired. Please log in again.'));
+            exit;
+        }
+        $row = mysqli_fetch_assoc($check);
+        if ($row['status'] !== 'active') {
+            unset($_SESSION['staff_id'], $_SESSION['staff_name'], $_SESSION['company_id'], $_SESSION['user_type']);
+            header('Location: ' . BASE_URL . '/auth/staff_login.php?error=' . urlencode('Your account has been deactivated.'));
+            exit;
+        }
     }
 }

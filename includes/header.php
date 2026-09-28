@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/bootstrap.php';
 require_seeker_login();
+global $con;
 require_once dirname(__DIR__) . '/ai/config.php';
 require_once dirname(__DIR__) . '/ai/helpers.php';
 
@@ -49,13 +50,16 @@ $unread_total = $unread_notifs + $unread_messages;
             <a class="nav-link <?php echo in_array($nav_page, ['my_application.php', 'application.php']) ? 'active' : ''; ?>" href="my_application.php">Applications</a>
           </li>
           <li class="nav-item">
+            <a class="nav-link <?php echo in_array($nav_page, ['skills.php', 'assessment_engine.php']) ? 'active' : ''; ?>" href="skills.php">Verified Skills</a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link <?php echo $nav_page == 'live_chat.php' ? 'active' : ''; ?>" href="live_chat.php" style="color: var(--primary); font-weight: 600;">
               <i class="fas fa-comment-dots mr-1"></i>Live Chat
               <span class="lc-nav-badge" id="lcNotifBadge" style="display:none;">0</span>
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link <?php echo strpos($nav_page, 'ai_') !== false || $nav_page == 'grooming.php' ? 'active' : ''; ?>" href="ai_hub.php" style="color: var(--primary); font-weight: 600;">
+            <a class="nav-link <?php echo (strpos($nav_page, 'ai_') !== false || in_array($nav_page, ['grooming.php', 'skill_gap.php', 'career_path.php', 'recommendations.php'])) ? 'active' : ''; ?>" href="ai_hub.php" style="color: var(--primary); font-weight: 600;">
               <i class="fas fa-robot mr-1"></i>AI Center
             </a>
           </li>

@@ -211,6 +211,8 @@ function nh_get_recommendations($con, $user, $limit = 10) {
             FROM company_jobs cj
             LEFT JOIN companies c ON cj.company_id = c.id
             WHERE cj.status = 'active'
+              AND cj.job_title NOT LIKE '%E2E%'
+              AND (c.company_name IS NULL OR c.company_name NOT LIKE '%E2E%')
             ORDER BY cj.is_featured DESC, cj.id DESC LIMIT 50";
 
     $res = @mysqli_query($con, $sql);
@@ -221,6 +223,11 @@ function nh_get_recommendations($con, $user, $limit = 10) {
 
     $scored_jobs = [];
     while ($job = mysqli_fetch_assoc($res)) {
+        // Skip dummy or test jobs
+        if (stripos($job['job_title'], 'e2e') !== false || stripos($job['company_name'] ?? '', 'e2e') !== false) {
+            continue;
+        }
+
         $ai_data = ai_match_profile_job($user, $job);
 
         // Boost score if featured
@@ -235,5 +242,17 @@ function nh_get_recommendations($con, $user, $limit = 10) {
     // Sort by AI score descending
     usort($scored_jobs, fn($a, $b) => $b['ai']['score'] <=> $a['ai']['score']);
 
-    return array_slice($scored_jobs, 0, $limit);
+    // Deduplicate by job_title and company
+    $deduped = [];
+    $seen = [];
+    foreach ($scored_jobs as $sj) {
+        $dedup_key = strtolower(trim($sj['job_title'])) . '|||' . strtolower(trim($sj['company_name'] ?? ''));
+        if (isset($seen[$dedup_key])) {
+            continue;
+        }
+        $seen[$dedup_key] = true;
+        $deduped[] = $sj;
+    }
+
+    return array_slice($deduped, 0, $limit);
 }
