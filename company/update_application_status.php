@@ -10,6 +10,18 @@ if (!isset($_SESSION['company_id'])) {
 
 $company_id = (int)$_SESSION['company_id'];
 $company_name = $_SESSION['company_name'] ?? 'Company';
+
+// Backend verification authorization check
+require_once __DIR__ . '/../includes/company_verification.php';
+if (!is_company_verified($con, $company_id)) {
+    echo json_encode([
+        'ok' => false,
+        'msg' => 'Company verification required. Please submit valid business evidence to unlock candidate shortlisting and stage updates.',
+        'verification_required' => true,
+        'verification_url' => BASE_URL . '/company/verification.php'
+    ]);
+    exit;
+}
 $app_id = (int)($_POST['app_id'] ?? 0);
 $status = $_POST['status'] ?? '';
 

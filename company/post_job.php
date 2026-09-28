@@ -1,5 +1,6 @@
 <?php
     require_once __DIR__ . '/../includes/bootstrap.php';
+    require_once __DIR__ . '/../includes/company_verification.php';
     global $con;
 
     // Check if company is logged in
@@ -8,11 +9,21 @@
         exit;
     }
 
-    $company_id = $_SESSION['company_id'];
-    $company_name = $_SESSION['company_name'];
+    $company_id = (int)$_SESSION['company_id'];
+    $company_name = $_SESSION['company_name'] ?? 'Company';
+
+    // Backend Authorization Guard: Company must be verified to post jobs
+    $is_verified = is_company_verified($con, $company_id);
+
+    if (!$is_verified) {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            http_response_code(403);
+            die('Company verification required. You must submit valid business evidence and receive administrator approval before posting jobs.');
+        }
+    }
 
     // Check if company can post more jobs
-    if (!can_post_job($con, $company_id)) {
+    if ($is_verified && !can_post_job($con, $company_id)) {
         $error_msg = "You've reached your job posting limit. Please upgrade your plan to post more jobs.";
     }
 
@@ -205,29 +216,49 @@
 
         .pj-input {
             width: 100%;
-            background: var(--pj-input);
+            background-color: var(--pj-input);
             border: 1.5px solid var(--pj-border);
             color: var(--pj-text);
             border-radius: 12px;
             padding: 12px 16px;
             font-size: 0.92rem;
             outline: none;
-            transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+            transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
         }
         .pj-input:focus {
             border-color: var(--pj-primary);
-            background: var(--pj-card);
+            background-color: var(--pj-card);
             box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.14);
         }
         .pj-input::placeholder { color: var(--pj-muted); opacity: .7; }
         select.pj-input {
             appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-color: var(--pj-input);
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3e%3cpath fill='%2394a3b8' d='M1.4 0l4.6 4.6L10.6 0 12 1.4 6 7.4 0 1.4z'/%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 16px center;
+            background-repeat: no-repeat !important;
+            background-position: right 16px center !important;
+            background-size: 12px 8px !important;
             padding-right: 40px;
+            cursor: pointer;
         }
-        [data-theme="dark"] select.pj-input { background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3e%3cpath fill='%23a78bfa' d='M1.4 0l4.6 4.6L10.6 0 12 1.4 6 7.4 0 1.4z'/%3e%3c/svg%3e"); }
+        [data-theme="dark"] select.pj-input {
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3e%3cpath fill='%23a78bfa' d='M1.4 0l4.6 4.6L10.6 0 12 1.4 6 7.4 0 1.4z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat !important;
+            background-position: right 16px center !important;
+            background-size: 12px 8px !important;
+        }
+        select.pj-input:focus {
+            background-color: var(--pj-card);
+            background-repeat: no-repeat !important;
+            background-position: right 16px center !important;
+            background-size: 12px 8px !important;
+        }
+        select.pj-input option {
+            background-color: var(--pj-card);
+            color: var(--pj-text);
+        }
 
         textarea.pj-input { min-height: 120px; resize: vertical; line-height: 1.6; }
         .pj-hint { font-size: 0.75rem; color: var(--pj-muted); margin-top: 6px; }
@@ -398,6 +429,41 @@
                 </div>
             </div>
         <?php endif; ?>
+
+        <?php if (!$is_verified): 
+            $cverif = nh_get_company_verification($con, $company_id);
+            $cstatus = $cverif['verification_status'] ?? VERIF_STATUS_PENDING;
+        ?>
+            <div class="pj-section text-center py-5" style="border: 2px dashed #f59e0b; background: rgba(245, 158, 11, 0.04); border-radius: 20px; padding: 50px 30px;">
+                <div style="width: 76px; height: 76px; border-radius: 50%; background: rgba(245, 158, 11, 0.15); color: #d97706; display: inline-flex; align-items: center; justify-content: center; font-size: 2.2rem; margin-bottom: 20px;">
+                    <i class="fas fa-shield-halved"></i>
+                </div>
+                <h2 style="font-weight: 800; font-size: 1.6rem; margin-bottom: 12px; color: var(--pj-text);">
+                    🔒 Company Verification Required
+                </h2>
+                <p style="max-width: 600px; margin: 0 auto 24px; color: var(--pj-muted); font-size: 1rem; line-height: 1.6;">
+                    To maintain trusted and authentic job listings on NOVAHIRE, all employers must verify their business entity by submitting an official Trade License or Business Registration Certificate.
+                </p>
+                <?php if ($cstatus === 'under_review'): ?>
+                    <div class="alert alert-warning d-inline-block text-left mb-4" style="border-radius: 12px; max-width: 500px; padding: 14px 20px;">
+                        <i class="fas fa-clock mr-2"></i> Your verification evidence is currently <strong>Under Review</strong> by our administrators. Job posting will be enabled as soon as your account is approved.
+                    </div>
+                <?php elseif ($cstatus === 'rejected'): ?>
+                    <div class="alert alert-danger d-inline-block text-left mb-4" style="border-radius: 12px; max-width: 500px; padding: 14px 20px;">
+                        <i class="fas fa-circle-xmark mr-2"></i> Verification was rejected: <em><?php echo htmlspecialchars($cverif['verification_rejection_reason'] ?? 'Please submit new evidence.'); ?></em>
+                    </div>
+                <?php elseif ($cstatus === 'resubmission_required'): ?>
+                    <div class="alert alert-info d-inline-block text-left mb-4" style="border-radius: 12px; max-width: 500px; padding: 14px 20px;">
+                        <i class="fas fa-circle-exclamation mr-2"></i> Action Required: <em><?php echo htmlspecialchars($cverif['verification_rejection_reason'] ?? 'Please update your evidence.'); ?></em>
+                    </div>
+                <?php endif; ?>
+                <div>
+                    <a href="verification.php" class="btn btn-primary btn-lg" style="border-radius: 12px; padding: 14px 36px; font-weight: 700; background: linear-gradient(135deg, #1a56db, #0ea5e9); border: none; box-shadow: 0 8px 24px rgba(26, 86, 219, 0.35); color:#fff; text-decoration:none; display:inline-block;">
+                        <i class="fas fa-arrow-right mr-2"></i> Go to Company Verification
+                    </a>
+                </div>
+            </div>
+        <?php else: ?>
 
         <form method="POST" action="" id="postJobForm" onsubmit="return validateJobForm()">
             <?php echo csrf_input(); ?>
@@ -579,6 +645,7 @@
                 </div>
             </div>
         </form>
+        <?php endif; ?>
     </div>
 
     <!-- Success toast -->

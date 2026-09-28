@@ -9,6 +9,12 @@
     $company_id = (int)$_SESSION['company_id'];
     $company_name = $_SESSION['company_name'] ?? 'Company';
 
+    /* ── Verification state ─────────────────────────────────── */
+    require_once __DIR__ . '/../includes/company_verification.php';
+    $verif_data = nh_get_company_verification($con, $company_id);
+    $is_company_verified = ($verif_data && $verif_data['verification_status'] === VERIF_STATUS_VERIFIED && (int)$verif_data['is_verified'] === 1);
+    $verif_status_key = $verif_data['verification_status'] ?? VERIF_STATUS_PENDING;
+
     /* ── KPI stats ─────────────────────────────────────────── */
     $stats = [
         'total_jobs' => 0, 'active_jobs' => 0,
@@ -638,6 +644,73 @@
     </div>
 
     <div class="container" style="margin-top: -34px;">
+
+        <?php if (!$is_company_verified): ?>
+            <!-- Verification Alert Banner -->
+            <?php 
+                $v_banner_bg = '#fefce8';
+                $v_banner_border = '#fde047';
+                $v_banner_text = '#713f12';
+                $v_banner_icon = 'fa-triangle-exclamation';
+                $v_banner_title = '⚠ Company Verification Required';
+                $v_banner_btn_text = 'Verify Company Now';
+                $v_banner_btn_class = 'btn-warning';
+
+                if ($verif_status_key === 'under_review') {
+                    $v_banner_bg = '#fff7ed';
+                    $v_banner_border = '#fdba74';
+                    $v_banner_text = '#7c2d12';
+                    $v_banner_icon = 'fa-clock';
+                    $v_banner_title = '🟠 Verification Evidence Under Review';
+                    $v_banner_btn_text = 'Check Status / Evidence';
+                    $v_banner_btn_class = 'btn-warning';
+                } elseif ($verif_status_key === 'rejected') {
+                    $v_banner_bg = '#fef2f2';
+                    $v_banner_border = '#fca5a5';
+                    $v_banner_text = '#991b1b';
+                    $v_banner_icon = 'fa-circle-xmark';
+                    $v_banner_title = '🔴 Verification Request Rejected';
+                    $v_banner_btn_text = 'Review Feedback & Resubmit';
+                    $v_banner_btn_class = 'btn-danger';
+                } elseif ($verif_status_key === 'resubmission_required') {
+                    $v_banner_bg = '#f0f9ff';
+                    $v_banner_border = '#7dd3fc';
+                    $v_banner_text = '#075985';
+                    $v_banner_icon = 'fa-circle-exclamation';
+                    $v_banner_title = '🔵 Additional Verification Information Required';
+                    $v_banner_btn_text = 'Update Evidence';
+                    $v_banner_btn_class = 'btn-info';
+                }
+            ?>
+            <div class="nd-reveal nd-in mb-4" style="background: <?php echo $v_banner_bg; ?>; border: 1.5px solid <?php echo $v_banner_border; ?>; border-radius: 16px; padding: 20px 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); color: <?php echo $v_banner_text; ?>;">
+                <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between" style="gap: 16px;">
+                    <div class="d-flex align-items-start" style="gap: 14px;">
+                        <div style="font-size: 1.6rem; line-height: 1; margin-top: 2px;">
+                            <i class="fas <?php echo $v_banner_icon; ?>"></i>
+                        </div>
+                        <div>
+                            <h5 style="margin: 0 0 4px; font-weight: 800; font-size: 1.05rem; color: inherit;"><?php echo $v_banner_title; ?></h5>
+                            <p style="margin: 0; font-size: 0.88rem; opacity: 0.95; line-height: 1.5;">
+                                <?php if ($verif_status_key === 'under_review'): ?>
+                                    Your business evidence (Trade License / Incorporation Certificate) has been received and is currently under review by our team. Recruitment actions will be activated immediately once verified.
+                                <?php elseif ($verif_status_key === 'rejected'): ?>
+                                    Your verification request was rejected. <?php echo !empty($verif_data['verification_rejection_reason']) ? 'Reason: <strong>' . htmlspecialchars($verif_data['verification_rejection_reason']) . '</strong>' : 'Please check feedback and resubmit.'; ?>
+                                <?php elseif ($verif_status_key === 'resubmission_required'): ?>
+                                    The administrator requested updates to your documents. <?php echo !empty($verif_data['verification_rejection_reason']) ? 'Note: <strong>' . htmlspecialchars($verif_data['verification_rejection_reason']) . '</strong>' : 'Please upload requested documents.'; ?>
+                                <?php else: ?>
+                                    Your company account has not been verified yet. Submit valid business documentation (e.g., Trade License, Registration Certificate) to unlock job posting and hiring tools.
+                                <?php endif; ?>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <a href="verification.php" class="btn <?php echo $v_banner_btn_class; ?>" style="font-weight: 700; border-radius: 10px; padding: 10px 20px; white-space: nowrap; font-size: 0.88rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                            <i class="fas fa-shield-halved mr-1"></i> <?php echo $v_banner_btn_text; ?>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <!-- ═══════════ KPI CARDS ═══════════ -->
         <div class="row">

@@ -1,13 +1,39 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
+global $con;
 
 $current_page = basename($_SERVER['PHP_SELF']);
 $company_name = $_SESSION['company_name'] ?? 'Company Dashboard';
 $company_logo = $_SESSION['company_logo'] ?? '';
 $company_id = $_SESSION['company_id'] ?? 0;
+$company_initial = mb_strtoupper(mb_substr(trim($company_name), 0, 1));
 
 $unread_notifs = get_unread_count($con, 'company', $company_id);
 $unread_messages = get_unread_message_count($con, 'company', $company_id);
+
+$cmp_header_notifs = get_notifications($con, 'company', $company_id, 6);
+
+$cmp_type_icons = [
+    'application_status' => 'fa-clipboard-check',
+    'new_application'    => 'fa-file-lines',
+    'message'            => 'fa-envelope',
+    'quiz_result'        => 'fa-chart-line',
+    'job_update'         => 'fa-briefcase',
+    'system'             => 'fa-bell',
+    'job_recommendation' => 'fa-star',
+    'interview'          => 'fa-calendar-check',
+];
+
+$cmp_type_colors = [
+    'application_status' => '#059669',
+    'new_application'    => '#3b82f6',
+    'message'            => '#06b6d4',
+    'quiz_result'        => '#d97706',
+    'job_update'         => '#06b6d4',
+    'system'             => '#3b82f6',
+    'job_recommendation' => '#ec4899',
+    'interview'          => '#8b5cf6',
+];
 
 $jobs_active = in_array($current_page, ['my_jobs.php', 'post_job.php']);
 $applicants_active = in_array($current_page, ['view_applicants.php', 'category_applicants.php']);
@@ -26,7 +52,15 @@ if (!empty($company_logo)) {
 }
 $logo_exists = !empty($company_logo) && file_exists($logo_file);
 
-$company_initial = mb_strtoupper(mb_substr(trim($company_name), 0, 1));
+$cmp_is_verified = false;
+$cmp_verif_status = 'pending';
+if ($company_id > 0 && isset($con) && $con) {
+    $cv_check = mysqli_query($con, "SELECT is_verified, verification_status FROM companies WHERE id = " . (int)$company_id);
+    if ($cv_check && $cv_row = mysqli_fetch_assoc($cv_check)) {
+        $cmp_is_verified = ((int)$cv_row['is_verified'] === 1 && $cv_row['verification_status'] === 'verified');
+        $cmp_verif_status = $cv_row['verification_status'] ?: ($cv_row['is_verified'] ? 'verified' : 'pending');
+    }
+}
 ?>
 
 <nav class="cmp-nav" id="cmpNav">
@@ -41,7 +75,14 @@ $company_initial = mb_strtoupper(mb_substr(trim($company_name), 0, 1));
                 <?php endif; ?>
             </span>
             <span class="cmp-brand-txt">
-                <span class="cmp-brand-name"><?php echo htmlspecialchars($company_name); ?></span>
+                <span class="cmp-brand-name">
+                    <?php echo htmlspecialchars($company_name); ?>
+                    <?php if ($cmp_is_verified): ?>
+                        <span class="badge badge-success ml-1" style="font-size:0.68rem; vertical-align:middle; background:#059669; color:#fff; border-radius:9999px; padding:2px 7px;">
+                            <i class="fas fa-check-circle"></i> Verified
+                        </span>
+                    <?php endif; ?>
+                </span>
                 <span class="cmp-brand-sub">Company Portal</span>
             </span>
         </a>
@@ -97,8 +138,24 @@ $company_initial = mb_strtoupper(mb_substr(trim($company_name), 0, 1));
                     <a class="cmp-link" href="talent_pool.php"><i class="fas fa-gem"></i><span>Talent Pool</span></a>
                 </li>
 
+                <li class="cmp-item <?php echo in_array($current_page, ['manage_staff.php']) ? 'is-active' : ''; ?>">
+                    <a class="cmp-link" href="manage_staff.php"><i class="fas fa-user-tie"></i><span>Staff</span></a>
+                </li>
+
                 <li class="cmp-item <?php echo $current_page == 'live_chat.php' ? 'is-active' : ''; ?>">
                     <a class="cmp-link" href="live_chat.php" style="position:relative;"><i class="fas fa-comments"></i><span>Live Chat</span><span class="cmp-badge" id="lcNotifBadge" style="display:none;">0</span></a>
+                </li>
+
+                <li class="cmp-item <?php echo $current_page == 'verification.php' ? 'is-active' : ''; ?>">
+                    <a class="cmp-link" href="verification.php">
+                        <i class="fas fa-shield-halved"></i>
+                        <span>Verification</span>
+                        <?php if (!$cmp_is_verified): ?>
+                            <span class="badge ml-1" style="font-size: 0.65rem; background: #eab308; color: #713f12; padding: 2px 5px; border-radius: 9999px;">
+                                <?php echo $cmp_verif_status === 'under_review' ? 'Review' : '!'; ?>
+                            </span>
+                        <?php endif; ?>
+                    </a>
                 </li>
             </ul>
 
@@ -107,10 +164,80 @@ $company_initial = mb_strtoupper(mb_substr(trim($company_name), 0, 1));
                     <i class="fas fa-moon" id="cmpThemeIcon"></i>
                 </button>
 
-                <a class="cmp-ghost" href="notifications.php" title="Notifications">
-                    <i class="fas fa-bell"></i>
-                    <?php if ($unread_notifs > 0): ?><span class="cmp-badge"><?php echo $unread_notifs; ?></span><?php endif; ?>
-                </a>
+                <!-- Notification Bell & Toggleable Panel -->
+                <div class="cmp-notif-wrap" id="cmpNotifWrap">
+                    <button class="cmp-ghost cmp-notif-btn" type="button" id="cmpNotifBtn" title="Notifications" aria-expanded="false" aria-haspopup="true">
+                        <i class="fas fa-bell"></i>
+                        <?php if ($unread_notifs > 0): ?>
+                            <span class="cmp-badge" id="cmpNotifBadge"><?php echo $unread_notifs; ?></span>
+                        <?php endif; ?>
+                    </button>
+
+                    <div class="cmp-notif-panel" id="cmpNotifPanel" aria-labelledby="cmpNotifBtn" role="region">
+                        <div class="cmp-notif-head">
+                            <div class="cmp-notif-title-wrap">
+                                <h6>Notifications</h6>
+                                <?php if ($unread_notifs > 0): ?>
+                                    <span class="cmp-notif-count-pill" id="cmpNotifCountPill"><?php echo $unread_notifs; ?> new</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="cmp-notif-head-actions">
+                                <?php if ($unread_notifs > 0): ?>
+                                    <button type="button" class="cmp-notif-markall-btn" id="cmpMarkAllReadBtn" onclick="markAllCompanyNotifsRead()">
+                                        <i class="fas fa-check-double mr-1"></i>Mark all read
+                                    </button>
+                                <?php endif; ?>
+                                <button type="button" class="cmp-notif-close-btn" id="cmpNotifCloseBtn" title="Close notification panel" aria-label="Close">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="cmp-notif-list" id="cmpNotifList">
+                            <?php if (empty($cmp_header_notifs)): ?>
+                                <div class="cmp-notif-empty">
+                                    <div class="cmp-notif-empty-ico">
+                                        <i class="fas fa-bell-slash"></i>
+                                    </div>
+                                    <p class="cmp-notif-empty-title">No notifications yet</p>
+                                    <small class="cmp-notif-empty-sub">When candidates apply or updates arrive, you'll see them here.</small>
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($cmp_header_notifs as $notif): 
+                                    $n_icon = $cmp_type_icons[$notif['notification_type']] ?? 'fa-bell';
+                                    $n_color = $cmp_type_colors[$notif['notification_type']] ?? '#3b82f6';
+                                    $n_read = (bool)$notif['is_read'];
+                                    $n_time = time_ago($notif['created_at']);
+                                ?>
+                                    <div class="cmp-notif-item <?php echo $n_read ? '' : 'is-unread'; ?>" 
+                                         id="cmp-notif-<?php echo $notif['id']; ?>"
+                                         onclick="markCompanyNotifRead(<?php echo $notif['id']; ?>, this)">
+                                        <div class="cmp-notif-item-ico" style="background: <?php echo $n_color; ?>18; color: <?php echo $n_color; ?>;">
+                                            <i class="fas <?php echo $n_icon; ?>"></i>
+                                        </div>
+                                        <div class="cmp-notif-item-body">
+                                            <div class="cmp-notif-item-head">
+                                                <h6 class="cmp-notif-item-title"><?php echo htmlspecialchars($notif['title']); ?></h6>
+                                                <?php if (!$n_read): ?>
+                                                    <span class="cmp-notif-dot"></span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <p class="cmp-notif-item-msg"><?php echo strip_tags($notif['message']); ?></p>
+                                            <span class="cmp-notif-item-time"><i class="far fa-clock mr-1"></i><?php echo $n_time; ?></span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="cmp-notif-foot">
+                            <a href="notifications.php" class="cmp-notif-viewall">
+                                <span>View all notifications</span>
+                                <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
 
                 <a class="cmp-ghost" href="message_center.php" title="Messages">
                     <i class="fas fa-envelope"></i>
@@ -142,6 +269,14 @@ $company_initial = mb_strtoupper(mb_substr(trim($company_name), 0, 1));
                         <a class="cmp-drop-item" href="profile.php">
                             <span class="cmp-drop-ico"><i class="fas fa-user-gear"></i></span>
                             <span class="cmp-drop-txt">Company Profile</span>
+                        </a>
+                        <a class="cmp-drop-item <?php echo $current_page == 'verification.php' ? 'is-active' : ''; ?>" href="verification.php">
+                            <span class="cmp-drop-ico"><i class="fas fa-shield-halved"></i></span>
+                            <span class="cmp-drop-txt">Verification Evidence<small><?php echo $cmp_is_verified ? 'Verified Company' : 'Submit Evidence'; ?></small></span>
+                        </a>
+                        <a class="cmp-drop-item" href="manage_staff.php">
+                            <span class="cmp-drop-ico"><i class="fas fa-user-tie"></i></span>
+                            <span class="cmp-drop-txt">Staff / Interviewers<small>Manage interviewers</small></span>
                         </a>
                         <a class="cmp-drop-item" href="message_center.php">
                             <span class="cmp-drop-ico"><i class="fas fa-envelope-open-text"></i></span>
@@ -530,6 +665,271 @@ $company_initial = mb_strtoupper(mb_substr(trim($company_name), 0, 1));
             min-width: 0;
         }
     }
+
+    /* ── Company Notification Panel ── */
+    .cmp-notif-wrap {
+        position: relative;
+    }
+    .cmp-notif-btn.is-active {
+        background: rgba(26, 86, 219, 0.15) !important;
+        color: var(--primary) !important;
+    }
+    .cmp-notif-panel {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: 380px;
+        max-width: calc(100vw - 24px);
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: 18px;
+        box-shadow: 0 22px 50px -12px rgba(15, 23, 42, 0.28);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(10px) scale(0.98);
+        transform-origin: top right;
+        transition: opacity .22s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform .22s cubic-bezier(0.16, 1, 0.3, 1),
+                    visibility .22s;
+        z-index: 1060;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    [data-theme="dark"] .cmp-notif-panel {
+        box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
+        border-color: rgba(51, 65, 85, 0.7);
+    }
+    .cmp-notif-panel.is-open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+    }
+
+    .cmp-notif-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border-light);
+        background: var(--bg-card);
+    }
+    .cmp-notif-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .cmp-notif-title-wrap h6 {
+        margin: 0;
+        font-family: 'Sora', sans-serif;
+        font-size: 0.94rem;
+        font-weight: 700;
+        color: var(--text);
+    }
+    .cmp-notif-count-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #1a56db, #0ea5e9);
+        color: #fff;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+    }
+    .cmp-notif-head-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .cmp-notif-markall-btn {
+        background: none;
+        border: none;
+        color: var(--primary);
+        font-size: 0.76rem;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background .2s ease;
+    }
+    .cmp-notif-markall-btn:hover {
+        background: var(--bg-hover);
+    }
+    .cmp-notif-close-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: background .2s ease, color .2s ease;
+    }
+    .cmp-notif-close-btn:hover {
+        background: var(--bg-hover);
+        color: var(--text);
+    }
+
+    .cmp-notif-list {
+        max-height: 340px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+    .cmp-notif-list::-webkit-scrollbar {
+        width: 5px;
+    }
+    .cmp-notif-list::-webkit-scrollbar-thumb {
+        background: var(--border-light);
+        border-radius: 10px;
+    }
+
+    .cmp-notif-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--border-light);
+        background: var(--bg-card);
+        cursor: pointer;
+        transition: background .2s ease, transform .2s ease;
+        position: relative;
+    }
+    .cmp-notif-item:last-child {
+        border-bottom: none;
+    }
+    .cmp-notif-item:hover {
+        background: var(--bg-hover);
+    }
+    .cmp-notif-item.is-unread {
+        background: rgba(26, 86, 219, 0.05);
+    }
+    [data-theme="dark"] .cmp-notif-item.is-unread {
+        background: rgba(96, 165, 250, 0.08);
+    }
+    .cmp-notif-item-ico {
+        width: 38px;
+        height: 38px;
+        border-radius: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.88rem;
+        flex-shrink: 0;
+    }
+    .cmp-notif-item-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .cmp-notif-item-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 2px;
+    }
+    .cmp-notif-item-title {
+        margin: 0;
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .cmp-notif-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #1a56db;
+        flex-shrink: 0;
+    }
+    .cmp-notif-item-msg {
+        margin: 0 0 4px;
+        font-size: 0.77rem;
+        color: var(--text-muted);
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .cmp-notif-item-time {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        opacity: 0.85;
+    }
+
+    .cmp-notif-empty {
+        padding: 38px 20px;
+        text-align: center;
+    }
+    .cmp-notif-empty-ico {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        background: var(--bg-hover);
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 12px;
+        font-size: 1.3rem;
+    }
+    .cmp-notif-empty-title {
+        margin: 0 0 4px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--text);
+    }
+    .cmp-notif-empty-sub {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        display: block;
+        max-width: 240px;
+        margin: 0 auto;
+        line-height: 1.4;
+    }
+
+    .cmp-notif-foot {
+        padding: 11px 18px;
+        border-top: 1px solid var(--border-light);
+        background: var(--bg-card);
+        text-align: center;
+    }
+    .cmp-notif-viewall {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        color: var(--primary);
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-decoration: none !important;
+        transition: transform .2s ease, color .2s ease;
+    }
+    .cmp-notif-viewall:hover {
+        transform: translateX(2px);
+        color: var(--primary);
+    }
+
+    @media (max-width: 991.98px) {
+        .cmp-notif-panel {
+            position: fixed;
+            top: 76px;
+            left: 14px;
+            right: 14px;
+            width: auto;
+            max-width: none;
+            max-height: 80vh;
+        }
+    }
 </style>
 
 <script>
@@ -555,6 +955,133 @@ $company_initial = mb_strtoupper(mb_substr(trim($company_name), 0, 1));
                 }
             });
         }
+
+        /* ── Notification Dropdown Toggle Mechanism ── */
+        var notifWrap = document.getElementById('cmpNotifWrap');
+        var notifBtn = document.getElementById('cmpNotifBtn');
+        var notifPanel = document.getElementById('cmpNotifPanel');
+        var notifCloseBtn = document.getElementById('cmpNotifCloseBtn');
+
+        function isNotifPanelOpen() {
+            return notifPanel && notifPanel.classList.contains('is-open');
+        }
+
+        function openNotifPanel() {
+            if (!notifPanel) return;
+            // Close any open Bootstrap/custom dropdowns
+            document.querySelectorAll('.cmp-drop.show').forEach(function (el) {
+                el.classList.remove('show');
+            });
+            notifPanel.classList.add('is-open');
+            if (notifBtn) {
+                notifBtn.setAttribute('aria-expanded', 'true');
+                notifBtn.classList.add('is-active');
+            }
+        }
+
+        function closeNotifPanel() {
+            if (!notifPanel) return;
+            notifPanel.classList.remove('is-open');
+            if (notifBtn) {
+                notifBtn.setAttribute('aria-expanded', 'false');
+                notifBtn.classList.remove('is-active');
+            }
+        }
+
+        function toggleNotifPanel(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            if (isNotifPanelOpen()) {
+                closeNotifPanel();
+            } else {
+                openNotifPanel();
+            }
+        }
+
+        if (notifBtn) {
+            notifBtn.addEventListener('click', toggleNotifPanel);
+        }
+
+        if (notifCloseBtn) {
+            notifCloseBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeNotifPanel();
+            });
+        }
+
+        // Close on clicking outside the notification panel and button
+        document.addEventListener('click', function (e) {
+            if (isNotifPanelOpen() && notifWrap && !notifWrap.contains(e.target)) {
+                closeNotifPanel();
+            }
+        });
+
+        // Close on pressing Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && isNotifPanelOpen()) {
+                closeNotifPanel();
+            }
+        });
+
+        // Expose functions globally for notification items
+        window.markCompanyNotifRead = function (notifId, element) {
+            fetch('../api/mark_notification_read.php?id=' + notifId)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        if (element) {
+                            element.classList.remove('is-unread');
+                            var dot = element.querySelector('.cmp-notif-dot');
+                            if (dot) dot.remove();
+                        }
+                        var badge = document.getElementById('cmpNotifBadge');
+                        if (badge) {
+                            var c = parseInt(badge.textContent, 10) || 0;
+                            c = Math.max(0, c - 1);
+                            if (c === 0) {
+                                badge.remove();
+                                var pill = document.getElementById('cmpNotifCountPill');
+                                if (pill) pill.remove();
+                                var markAll = document.getElementById('cmpMarkAllReadBtn');
+                                if (markAll) markAll.remove();
+                            } else {
+                                badge.textContent = c;
+                                var pill = document.getElementById('cmpNotifCountPill');
+                                if (pill) pill.textContent = c + ' new';
+                            }
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    console.error('Error marking read:', err);
+                });
+        };
+
+        window.markAllCompanyNotifsRead = function () {
+            fetch('../api/mark_all_read.php')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        document.querySelectorAll('#cmpNotifList .cmp-notif-item.is-unread').forEach(function (item) {
+                            item.classList.remove('is-unread');
+                            var dot = item.querySelector('.cmp-notif-dot');
+                            if (dot) dot.remove();
+                        });
+                        var badge = document.getElementById('cmpNotifBadge');
+                        if (badge) badge.remove();
+                        var pill = document.getElementById('cmpNotifCountPill');
+                        if (pill) pill.remove();
+                        var markAll = document.getElementById('cmpMarkAllReadBtn');
+                        if (markAll) markAll.remove();
+                    }
+                })
+                .catch(function (err) {
+                    console.error('Error marking all read:', err);
+                });
+        };
 
         var KEY = 'company-theme';
         function currentTheme() { return localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'; }
@@ -596,7 +1123,7 @@ $company_initial = mb_strtoupper(mb_substr(trim($company_name), 0, 1));
     .lc-toast-ico img { width: 100%; height: 100%; object-fit: cover; }
     .lc-toast-body { flex: 1; min-width: 0; }
     .lc-toast-body h6 { margin: 0 0 3px; font-size: 0.86rem; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lc-toast-body p { margin: 0; font-size: 0.8rem; color: #64748b; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .lc-toast-body p { margin: 0; font-size: 0.8rem; color: #64748b; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .lc-toast-close { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem; padding: 2px; flex-shrink: 0; line-height: 1; }
     @keyframes lcToastIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 </style>

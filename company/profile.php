@@ -483,7 +483,18 @@ require_once __DIR__ . '/../includes/bootstrap.php';
                 <?php endif; ?>
             </div>
             <div class="pp-hero-txt">
-                <h1><?php echo htmlspecialchars($company['company_name']); ?></h1>
+                <h1>
+                    <?php echo htmlspecialchars($company['company_name']); ?>
+                    <?php if (!empty($company['is_verified']) && ($company['verification_status'] ?? '') === 'verified'): ?>
+                        <span class="badge badge-success ml-2" style="font-size: 0.75rem; vertical-align: middle; background: #059669; color: #fff; padding: 4px 10px; border-radius: 9999px;">
+                            <i class="fas fa-check-circle"></i> Verified
+                        </span>
+                    <?php else: ?>
+                        <a href="verification.php" class="badge badge-warning ml-2" style="font-size: 0.75rem; vertical-align: middle; background: #fef08a; color: #854d0e; padding: 4px 10px; border-radius: 9999px; text-decoration: none;">
+                            <i class="fas fa-shield-halved"></i> <?php echo ucfirst(str_replace('_', ' ', $company['verification_status'] ?? 'pending')); ?>
+                        </a>
+                    <?php endif; ?>
+                </h1>
                 <p class="pp-email"><i class="fas fa-envelope mr-2"></i><?php echo htmlspecialchars($company['company_email']); ?></p>
                 <p class="pp-since"><i class="far fa-calendar-alt mr-2"></i>Member since <?php echo date('M Y', strtotime($company['registration_date'])); ?></p>
             </div>
