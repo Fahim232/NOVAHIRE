@@ -83,6 +83,27 @@ function nh_feature_config() {
             'free_limit'  => 10,
             'type'        => 'soft_limit',
         ],
+        'career_analytics' => [
+            'label'       => 'Career Analytics',
+            'icon'        => 'fa-chart-line',
+            'description' => 'Track your job search performance with detailed analytics and insights.',
+            'free_limit'  => 0,
+            'type'        => 'hard_gate',
+        ],
+        'application_pipeline' => [
+            'label'       => 'Application Pipeline',
+            'icon'        => 'fa-columns',
+            'description' => 'Visual kanban board to drag-and-drop track your applications through stages.',
+            'free_limit'  => 0,
+            'type'        => 'hard_gate',
+        ],
+        'job_match_notifs' => [
+            'label'       => 'Job Match Notifications',
+            'icon'        => 'fa-bell',
+            'description' => 'Get notified when new jobs matching your skills are posted.',
+            'free_limit'  => 0,
+            'type'        => 'hard_gate',
+        ],
     ];
 }
 
@@ -153,7 +174,7 @@ function nh_render_pro_gate($feature_key, $echo = true) {
     $config = nh_feature_config();
     $feat = $config[$feature_key] ?? ['label' => 'This feature', 'icon' => 'fa-lock', 'description' => 'Upgrade to access this feature.'];
 
-    $pro_price = nh_pricing()['pro_monthly'] ?? 499;
+    $pro_price = nh_pricing()['pro_price'] ?? 499;
 
     $html = '
     <div class="nh-pro-gate-overlay">
@@ -189,7 +210,7 @@ function nh_render_pro_gate($feature_key, $echo = true) {
 function nh_render_soft_gate($feature_key, $remaining, $limit, $echo = true) {
     $config = nh_feature_config();
     $feat = $config[$feature_key] ?? ['label' => 'This feature', 'icon' => 'fa-lock'];
-    $pro_price = nh_pricing()['pro_monthly'] ?? 499;
+    $pro_price = nh_pricing()['pro_price'] ?? 499;
     $used = $limit - $remaining;
     $pct = $limit > 0 ? round(($used / $limit) * 100) : 0;
     $bar_class = $pct >= 80 ? 'danger' : ($pct >= 50 ? 'warning' : '');
@@ -249,7 +270,7 @@ function nh_render_usage_bar($con, $user_id, $feature_key, $echo = true) {
 /* ── UI: Upgrade Banner (for dashboard/nav) ───────────────────────────────── */
 
 function nh_render_upgrade_banner($echo = true) {
-    $pro_price = nh_pricing()['pro_monthly'] ?? 499;
+    $pro_price = nh_pricing()['pro_price'] ?? 499;
 
     $html = '
     <div class="nh-upgrade-banner">

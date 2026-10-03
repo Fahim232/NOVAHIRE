@@ -35,6 +35,18 @@ function app_base_url() {
 }
 if (!defined('BASE_URL')) define('BASE_URL', app_base_url());
 
+/* ── Google OAuth (optional) ─────────────────────────────────────────────────
+ * Set these to your Google Cloud OAuth 2.0 credentials to enable
+ * "Continue with Google" on the login page. When unset, the button stays
+ * hidden and nothing else is affected.
+ *   GOOGLE_CLIENT_ID     e.g. "1234567890-abc.apps.googleusercontent.com"
+ *   GOOGLE_CLIENT_SECRET e.g. "GOCSPX-..."
+ *   GOOGLE_REDIRECT_URI  defaults to BASE_URL . '/auth/google_callback.php'
+ *                          (must match the authorised redirect URI in Google Cloud)
+ */
+if (!defined('GOOGLE_CLIENT_ID'))     define('GOOGLE_CLIENT_ID', '');
+if (!defined('GOOGLE_CLIENT_SECRET')) define('GOOGLE_CLIENT_SECRET', '');
+
 /* ── 2. Session ───────────────────────────────────────────────────────────── */
 if (session_status() === PHP_SESSION_NONE) {
     @ini_set('session.cookie_httponly', 1);
@@ -48,7 +60,7 @@ if (session_status() === PHP_SESSION_NONE) {
 if (!defined('NOVAHIRE_DEBUG') || !NOVAHIRE_DEBUG) {
     @ini_set('display_errors', '0');
     @ini_set('log_errors', '1');
-    error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT);
+    error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 }
 
 /* ── 3. Database ──────────────────────────────────────────────────────────── */
@@ -105,6 +117,11 @@ if (!function_exists('execute_job_search')) {
 /* ── 9. Resume Builder ───────────────────────────────────────────────────── */
 if (!function_exists('get_resume_data')) {
     require_once __DIR__ . '/resume_builder.php';
+}
+
+/* ── 10. Phase 2: Career Analytics & Profile Score ───────────────────────── */
+if (!defined('NOVAHIRE_ANALYTICS') && file_exists(__DIR__ . '/analytics.php')) {
+    require_once __DIR__ . '/analytics.php';
 }
 
 /* ── 5. Auth guards ───────────────────────────────────────────────────────── */
