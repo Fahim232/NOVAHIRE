@@ -22,24 +22,20 @@ if ($sessionAdmin) {
     exit;
 }
 
-$db        = @mysqli_connect('127.0.0.1', 'root', '', 'projects');
+// Stats — uses $con from bootstrap.php (no duplicate connection needed)
 $totalJobs = 0;
 $totalCompanies = 0;
 $totalUsers = 0;
 $totalApplications = 0;
-
-if ($db) {
-    $queryJobs = "SELECT COUNT(*) as total FROM company_jobs WHERE status='active'";
-    $totalJobs = mysqli_fetch_assoc(mysqli_query($db, $queryJobs))['total'] ?? 0;
-
-    $queryCompanies = "SELECT COUNT(*) as total FROM companies WHERE status='active'";
-    $totalCompanies = mysqli_fetch_assoc(mysqli_query($db, $queryCompanies))['total'] ?? 0;
-
-    $queryUsers = "SELECT COUNT(*) as total FROM user_info";
-    $totalUsers = mysqli_fetch_assoc(mysqli_query($db, $queryUsers))['total'] ?? 0;
-
-    $queryApps = "SELECT COUNT(*) as total FROM job_applications";
-    $totalApplications = mysqli_fetch_assoc(mysqli_query($db, $queryApps))['total'] ?? 0;
+if ($con) {
+    $r = mysqli_query($con, "SELECT COUNT(*) as cnt FROM company_jobs WHERE status='active'");
+    $totalJobs = ($r ? mysqli_fetch_assoc($r)['cnt'] : 0) ?? 0;
+    $r = mysqli_query($con, "SELECT COUNT(*) as cnt FROM companies WHERE status='active'");
+    $totalCompanies = ($r ? mysqli_fetch_assoc($r)['cnt'] : 0) ?? 0;
+    $r = mysqli_query($con, "SELECT COUNT(*) as cnt FROM user_info");
+    $totalUsers = ($r ? mysqli_fetch_assoc($r)['cnt'] : 0) ?? 0;
+    $r = mysqli_query($con, "SELECT COUNT(*) as cnt FROM job_applications");
+    $totalApplications = ($r ? mysqli_fetch_assoc($r)['cnt'] : 0) ?? 0;
 }
 ?>
 <!DOCTYPE html>
@@ -55,6 +51,53 @@ if ($db) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?php echo BASE_URL; ?>/images/favicon.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="<?php echo BASE_URL; ?>/images/icon-192.png">
+    <style>
+        /* ═══ PRELOADER ═══ */
+        .nh-preloader {
+            position: fixed; inset: 0; z-index: 99999;
+            background: linear-gradient(135deg, #0c1222 0%, #1a56db 100%);
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 20px;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        .nh-preloader.loaded { opacity: 0; visibility: hidden; pointer-events: none; }
+        .nh-preloader-logo {
+            font-family: 'Sora', sans-serif; font-size: 2rem; font-weight: 800;
+            color: #fff; letter-spacing: -1px;
+            animation: preloaderPulse 1.5s ease-in-out infinite;
+        }
+        .nh-preloader-logo span { color: #fbbf24; }
+        .nh-preloader-bar {
+            width: 120px; height: 4px; border-radius: 4px;
+            background: rgba(255,255,255,0.15); overflow: hidden;
+        }
+        .nh-preloader-fill {
+            width: 0%; height: 100%; border-radius: 4px;
+            background: linear-gradient(90deg, #fbbf24, #d97706);
+            animation: preloaderFill 1.2s ease-out forwards;
+        }
+        @keyframes preloaderPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.97); }
+        }
+        @keyframes preloaderFill {
+            0% { width: 0%; }
+            60% { width: 75%; }
+            100% { width: 100%; }
+        }
+
+        /* ═══ PAGE TRANSITION ═══ */
+        .nh-page-wrap {
+            opacity: 0;
+            animation: pageReveal 0.6s ease 0.2s forwards;
+        }
+        @keyframes pageReveal {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
     <style>
         :root {
             --lh-primary: var(--primary, #1a56db);
@@ -1140,16 +1183,29 @@ if ($db) {
             transform: translateY(30px);
             transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
         }
-
         .reveal.visible {
             opacity: 1;
             transform: none;
+        }
+        /* ═══ PARTICLE CANVAS ═══ */
+        #particleCanvas {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1; pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-<!-- Navigation Bar -->
+<!-- ═══ PRELOADER ═══ -->
+<div class="nh-preloader" id="nhPreloader">
+    <div class="nh-preloader-logo">Nova<span>Hire</span></div>
+    <div class="nh-preloader-bar"><div class="nh-preloader-fill"></div></div>
+</div>
+
+<div class="nh-page-wrap">
+
+<!-- ═══ NAVBAR ═══ -->
 <nav class="lh-nav" id="mainNav">
     <div class="lh-nav-inner">
         <a href="index.php" class="lh-logo">
@@ -1192,6 +1248,7 @@ if ($db) {
 
 <!-- Hero Section -->
 <section class="lh-hero">
+    <canvas id="particleCanvas"></canvas>
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-6 lh-hero-content">
@@ -1607,7 +1664,6 @@ if ($db) {
         // Counter animation
         function animateCounter(element, target, duration) {
             var startTime = null;
-            var startValue = 0;
 
             function updateCounter(currentTime) {
                 if (!startTime) startTime = currentTime;
@@ -1654,7 +1710,112 @@ if ($db) {
             statsObserver.observe(statsSection);
         }
     })();
+
+// ═══ PRELOADER ═══
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        document.getElementById('nhPreloader').classList.add('loaded');
+    }, 800);
+});
+
+// ═══ PARTICLE ANIMATION ═══
+(function() {
+    var canvas = document.getElementById('particleCanvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var particles = [];
+    var particleCount = 60;
+    var mouse = { x: null, y: null };
+
+    function resize() {
+        canvas.width = canvas.parentElement.offsetWidth;
+        canvas.height = canvas.parentElement.offsetHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    canvas.parentElement.addEventListener('mousemove', function(e) {
+        var rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left;
+        mouse.y = e.clientY - rect.top;
+    });
+    canvas.parentElement.addEventListener('mouseleave', function() {
+        mouse.x = null;
+        mouse.y = null;
+    });
+
+    function Particle() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2 + 0.5;
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.speedY = (Math.random() - 0.5) * 0.5;
+        this.opacity = Math.random() * 0.5 + 0.1;
+    }
+    Particle.prototype.update = function() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (this.x > canvas.width) this.x = 0;
+        if (this.x < 0) this.x = canvas.width;
+        if (this.y > canvas.height) this.y = 0;
+        if (this.y < 0) this.y = canvas.height;
+    };
+    Particle.prototype.draw = function() {
+        ctx.fillStyle = 'rgba(255, 255, 255, ' + this.opacity + ')';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+    };
+
+    for (var i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+    }
+
+    function connectParticles() {
+        for (var a = 0; a < particles.length; a++) {
+            for (var b = a + 1; b < particles.length; b++) {
+                var dx = particles[a].x - particles[b].x;
+                var dy = particles[a].y - particles[b].y;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 120) {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, ' + (0.08 * (1 - dist / 120)) + ')';
+                    ctx.lineWidth = 0.6;
+                    ctx.beginPath();
+                    ctx.moveTo(particles[a].x, particles[a].y);
+                    ctx.lineTo(particles[b].x, particles[b].y);
+                    ctx.stroke();
+                }
+            }
+            if (mouse.x !== null) {
+                var mdx = particles[a].x - mouse.x;
+                var mdy = particles[a].y - mouse.y;
+                var mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+                if (mdist < 150) {
+                    ctx.strokeStyle = 'rgba(251, 191, 36, ' + (0.2 * (1 - mdist / 150)) + ')';
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.moveTo(particles[a].x, particles[a].y);
+                    ctx.lineTo(mouse.x, mouse.y);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (var i = 0; i < particles.length; i++) {
+            particles[i].update();
+            particles[i].draw();
+        }
+        connectParticles();
+        requestAnimationFrame(animate);
+    }
+    animate();
+})();
 </script>
+
+</div><!-- .nh-page-wrap -->
 
 </body>
 </html>
