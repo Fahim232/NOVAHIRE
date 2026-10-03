@@ -42,11 +42,24 @@ if (!function_exists('create_notification')) {
  * Get unread notification count
  */
 if (!function_exists('get_unread_count')) {
-    function get_unread_count($con, $recipient_type, $recipient_id) {
+    /**
+     * @param string|array $exclude_types notification_type(s) to exclude (e.g. 'message')
+     */
+    function get_unread_count($con, $recipient_type, $recipient_id, $exclude_types = null) {
         if (!$con || !$recipient_id) return 0;
-        $stmt = mysqli_prepare($con, "SELECT COUNT(*) as cnt FROM notifications WHERE recipient_type = ? AND recipient_id = ? AND is_read = 0");
+        $sql = "SELECT COUNT(*) as cnt FROM notifications WHERE recipient_type = ? AND recipient_id = ? AND is_read = 0";
+        $params = [$recipient_type, $recipient_id];
+        $types = 'si';
+        if ($exclude_types) {
+            if (is_string($exclude_types)) $exclude_types = [$exclude_types];
+            $placeholders = implode(',', array_fill(0, count($exclude_types), '?'));
+            $sql .= " AND notification_type NOT IN ($placeholders)";
+            $params = array_merge($params, $exclude_types);
+            $types .= str_repeat('s', count($exclude_types));
+        }
+        $stmt = mysqli_prepare($con, $sql);
         if (!$stmt) return 0;
-        mysqli_stmt_bind_param($stmt, "si", $recipient_type, $recipient_id);
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         $row = mysqli_fetch_assoc($result);
@@ -59,9 +72,26 @@ if (!function_exists('get_unread_count')) {
  * Get recent notifications for a recipient
  */
 if (!function_exists('get_notifications')) {
-    function get_notifications($con, $recipient_type, $recipient_id, $limit = 10, $offset = 0) {
-        $stmt = mysqli_prepare($con, "SELECT * FROM notifications WHERE recipient_type = ? AND recipient_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
-        mysqli_stmt_bind_param($stmt, "siii", $recipient_type, $recipient_id, $limit, $offset);
+    /**
+     * @param string|array $exclude_types notification_type(s) to exclude (e.g. 'message')
+     */
+    function get_notifications($con, $recipient_type, $recipient_id, $limit = 10, $offset = 0, $exclude_types = null) {
+        $sql = "SELECT * FROM notifications WHERE recipient_type = ? AND recipient_id = ?";
+        $params = [$recipient_type, $recipient_id];
+        $types = 'si';
+        if ($exclude_types) {
+            if (is_string($exclude_types)) $exclude_types = [$exclude_types];
+            $placeholders = implode(',', array_fill(0, count($exclude_types), '?'));
+            $sql .= " AND notification_type NOT IN ($placeholders)";
+            $params = array_merge($params, $exclude_types);
+            $types .= str_repeat('s', count($exclude_types));
+        }
+        $sql .= " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        $types .= 'ii';
+        $stmt = mysqli_prepare($con, $sql);
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         $notifications = [];
@@ -408,6 +438,27 @@ if (!function_exists('check_subscription_feature')) {
         ];
         
         return in_array($plan['name'] ?? 'Free', $features[$feature] ?? []);
+    }
+}
+
+/**
+ * Profile completion score (0-100) based on key seeker fields
+ */
+if (!function_exists('get_user_profile_completion')) {
+    function get_user_profile_completion($user_row) {
+        $fields = [
+            'username'    => 15,
+            'email'       => 15,
+            'phone'       => 15,
+            'user_degree' => 20,
+            'user_skills' => 25,
+            'profile'     => 10
+        ];
+        $completion = 0;
+        foreach ($fields as $field => $weight) {
+            if (!empty($user_row[$field])) $completion += $weight;
+        }
+        return min(100, max(0, intval($completion)));
     }
 }
 ?>

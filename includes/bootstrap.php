@@ -35,6 +35,14 @@ function app_base_url() {
 }
 if (!defined('BASE_URL')) define('BASE_URL', app_base_url());
 
+/* ── Google OAuth (optional) ─────────────────────────────────────────────────
+ * Set these to your Google Cloud OAuth 2.0 credentials to enable
+ * "Continue with Google" on the login page. When unset, the button stays
+ * hidden and nothing else is affected.
+ */
+if (!defined('GOOGLE_CLIENT_ID'))     define('GOOGLE_CLIENT_ID', '');
+if (!defined('GOOGLE_CLIENT_SECRET')) define('GOOGLE_CLIENT_SECRET', '');
+
 // Ensure PHP timezone matches MySQL server (+06:00 Asia/Dhaka)
 date_default_timezone_set('Asia/Dhaka');
 
@@ -136,6 +144,11 @@ if (!function_exists('is_company_verified') && file_exists(__DIR__ . '/company_v
 /* ── 11. AI CV Analyzer & Screening Engine ───────────────────────────────── */
 if (!function_exists('nh_analyze_application_cv') && file_exists(__DIR__ . '/ai_cv_screener.php')) {
     require_once __DIR__ . '/ai_cv_screener.php';
+}
+
+/* ── 12. Phase 2: Career Analytics & Profile Score ───────────────────────── */
+if (!defined('NOVAHIRE_ANALYTICS') && file_exists(__DIR__ . '/analytics.php')) {
+    require_once __DIR__ . '/analytics.php';
 }
 
 /* ── 5. Auth guards ───────────────────────────────────────────────────────── */
