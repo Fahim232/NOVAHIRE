@@ -74,7 +74,7 @@ $searched = ($code !== '');
     <div class="search">
       <h1><i class="fas fa-shield-halved mr-1" style="color:var(--brand)"></i> Verify a certificate</h1>
       <p>Enter a NovaHire certificate code to confirm it's authentic.</p>
-      <form method="GET" action="includes/verify_certificate.php">
+      <form method="GET" action="verify_certificate.php">
         <input type="text" name="code" placeholder="NH-XXXX-XXXX" value="<?= htmlspecialchars($code) ?>" autocomplete="off" autofocus>
         <button type="submit">Verify</button>
       </form>

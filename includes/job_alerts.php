@@ -126,7 +126,7 @@ function match_job_to_alerts($con, $job) {
 /* ── Send Job Alerts ────────────────────────────────────────────────────── */
 function send_job_alerts_to_subscribers($con, $job_id) {
     // Get job details
-    $stmt = mysqli_prepare($con, "SELECT cj.*, c.company_name FROM company_jobs cj LEFT JOIN companies c ON cj.company_id = c.id WHERE cj.job_id = ?");
+    $stmt = mysqli_prepare($con, "SELECT cj.*, c.company_name FROM company_jobs cj LEFT JOIN companies c ON cj.company_id = c.id WHERE cj.id = ?");
     mysqli_stmt_bind_param($stmt, "i", $job_id);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
@@ -194,9 +194,9 @@ function send_weekly_digests($con) {
                 FROM company_jobs cj 
                 LEFT JOIN companies c ON cj.company_id = c.id 
                 WHERE cj.status = 'active' 
-                AND cj.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                AND cj.posted_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)
                 AND ($where)
-                ORDER BY cj.created_at DESC 
+                ORDER BY cj.posted_date DESC 
                 LIMIT 5";
         
         $stmt = mysqli_prepare($con, $sql);

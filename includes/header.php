@@ -7,7 +7,7 @@ require_once dirname(__DIR__) . '/ai/helpers.php';
 $user_id = $_SESSION['id'];
 require_once __DIR__ . '/premium.php';
 $nh_is_pro = is_user_pro($con, $user_id);
-$unread_notifs = get_unread_count($con, 'user', $user_id);
+$unread_notifs = get_unread_count($con, 'user', $user_id, 'message');
 $unread_messages = get_unread_message_count($con, 'user', $user_id);
 $unread_total = $unread_notifs + $unread_messages;
 
@@ -22,8 +22,8 @@ $initial = strtoupper(substr($_SESSION['username'], 0, 1));
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NovaHire</title>
   <?php include __DIR__ . '/links.php' ?>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="manifest" href="/Job-portal-and-grooming/public/manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="manifest" href="<?php echo BASE_URL; ?>/public/manifest.json">
   <meta name="theme-color" content="#1a56db">
   <?php echo ai_css_link(); ?>
   <style>
@@ -115,6 +115,10 @@ $initial = strtoupper(substr($_SESSION['username'], 0, 1));
     .nh-notif-panel.open{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto;}
     .nh-notif-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border-light);}
     .nh-notif-head h6{margin:0;font-size:.92rem;font-weight:700;}
+    .nh-mark-read-btn{font-family:'Plus Jakarta Sans',sans-serif;font-size:.72rem;font-weight:700;color:var(--primary);background:rgba(26,86,219,.08);border:1px solid rgba(26,86,219,.15);border-radius:8px;padding:5px 12px;cursor:pointer;transition:all .25s;display:inline-flex;align-items:center;gap:5px;letter-spacing:.3px;}
+    .nh-mark-read-btn:hover{background:rgba(26,86,219,.16);border-color:rgba(26,86,219,.3);transform:translateY(-1px);box-shadow:0 2px 8px rgba(26,86,219,.15);}
+    .nh-mark-read-btn:active{transform:scale(.96);}
+    .nh-mark-read-btn.done{color:var(--success);background:rgba(5,150,105,.08);border-color:rgba(5,150,105,.2);pointer-events:none;}
     .nh-notif-body{max-height:320px;overflow-y:auto;}
     .nh-notif-body::-webkit-scrollbar{width:4px;}
     .nh-notif-body::-webkit-scrollbar-track{background:transparent;}
@@ -256,13 +260,13 @@ $initial = strtoupper(substr($_SESSION['username'], 0, 1));
         <div class="nh-notif-panel">
           <div class="nh-notif-head">
             <h6>Notifications</h6>
-            <?php if($unread_notifs>0): ?><button class="nh-link" style="font-size:.78rem;padding:0;" onclick="markAllNotificationsRead()">Mark all read</button><?php endif; ?>
+            <?php if($unread_notifs>0): ?><button class="nh-mark-read-btn" onclick="markAllNotificationsRead()"><i class="fas fa-check-double"></i>Mark all read</button><?php endif; ?>
           </div>
           <div class="nh-notif-body" id="notifList">
             <?php
-            $notifications = get_notifications($con, 'user', $user_id, 6);
-            $type_icons=['application_status'=>'fa-clipboard-check','new_application'=>'fa-file-alt','message'=>'fa-envelope','quiz_result'=>'fa-chart-line','job_update'=>'fa-briefcase','system'=>'fa-bell','job_recommendation'=>'fa-star'];
-            $type_colors=['application_status'=>'#059669','new_application'=>'#3b82f6','message'=>'#06b6d4','quiz_result'=>'#d97706','job_update'=>'#06b6d4','system'=>'#3b82f6','job_recommendation'=>'#ec4899'];
+            $notifications = get_notifications($con, 'user', $user_id, 6, 0, 'message');
+            $type_icons=['application_status'=>'fa-clipboard-check','new_application'=>'fa-file-alt','message'=>'fa-envelope','quiz_result'=>'fa-chart-line','job_update'=>'fa-briefcase','system'=>'fa-bell','job_recommendation'=>'fa-star','job_match'=>'fa-wand-magic-sparkles'];
+            $type_colors=['application_status'=>'#059669','new_application'=>'#3b82f6','message'=>'#06b6d4','quiz_result'=>'#d97706','job_update'=>'#06b6d4','system'=>'#3b82f6','job_recommendation'=>'#ec4899','job_match'=>'#ec4899'];
             if(empty($notifications)): ?>
               <div class="nh-notif-empty"><i class="fas fa-bell-slash"></i><p style="font-size:.88rem;color:var(--text-muted);margin:0;">No notifications yet</p></div>
             <?php else: foreach($notifications as $n):
@@ -293,27 +297,29 @@ $initial = strtoupper(substr($_SESSION['username'], 0, 1));
         <div class="nh-notif-panel">
           <div class="nh-notif-head">
             <h6>Messages</h6>
-            <?php if($unread_messages>0): ?><a href="message_center.php" class="nh-link" style="font-size:.78rem;padding:0;">Inbox</a><?php endif; ?>
+            <?php if($unread_messages>0): ?><a href="live_chat.php" class="nh-link" style="font-size:.78rem;padding:0;">Inbox</a><?php endif; ?>
           </div>
           <div class="nh-notif-body">
             <?php
-            $mq=mysqli_query($con,"SELECT m.*,CASE WHEN m.sender_type='company' THEN (SELECT company_name FROM companies WHERE id=m.sender_id) WHEN m.sender_type='user' THEN (SELECT username FROM user_info WHERE id=m.sender_id) ELSE 'System' END as sender_name FROM messages m WHERE (m.receiver_type='user' AND m.receiver_id=$user_id AND m.is_deleted_by_receiver=0) ORDER BY m.created_at DESC LIMIT 5");
-            if(mysqli_num_rows($mq)===0): ?>
+            $msg_notifs = get_notifications($con, 'user', $user_id, 20);
+            $msg_notifs = array_values(array_filter($msg_notifs, function($n) { return $n['notification_type'] === 'message'; }));
+            $msg_notifs = array_slice($msg_notifs, 0, 5);
+            if(empty($msg_notifs)): ?>
               <div class="nh-notif-empty"><i class="fas fa-envelope-open"></i><p style="font-size:.88rem;color:var(--text-muted);margin:0;">No messages yet</p></div>
-            <?php else: while($msg=mysqli_fetch_assoc($mq)):
+            <?php else: foreach($msg_notifs as $msg):
               $mc=$msg['is_read']?'':'unread';
             ?>
-              <div class="nh-notif-item <?php echo $mc; ?>" onclick="window.location.href='message_center.php?with=<?php echo $msg['sender_type'].'_'.$msg['sender_id']; ?>'">
-                <div class="nh-notif-icon" style="background:rgba(6,182,212,.1);color:#06b6d4;"><i class="fas fa-user"></i></div>
+              <div class="nh-notif-item <?php echo $mc; ?>" onclick="window.location.href='live_chat.php'">
+                <div class="nh-notif-icon" style="background:rgba(6,182,212,.1);color:#06b6d4;"><i class="fas fa-comment-dots"></i></div>
                 <div class="nh-notif-content">
-                  <h6 class="nh-notif-title"><?php echo htmlspecialchars($msg['sender_name']); ?></h6>
-                  <p class="nh-notif-msg"><?php echo htmlspecialchars(substr($msg['subject'],0,50)); ?></p>
+                  <h6 class="nh-notif-title"><?php echo htmlspecialchars($msg['title']); ?></h6>
+                  <p class="nh-notif-msg"><?php echo htmlspecialchars($msg['message']); ?></p>
                   <small class="nh-notif-time"><?php echo time_ago($msg['created_at']); ?></small>
                 </div>
               </div>
-            <?php endwhile; endif; ?>
+            <?php endforeach; endif; ?>
           </div>
-          <div class="nh-notif-foot"><a href="message_center.php" class="btn btn-sm btn-primary btn-block rounded-pill">Open Message Center</a></div>
+          <div class="nh-notif-foot"><a href="live_chat.php" class="btn btn-sm btn-primary btn-block rounded-pill">Open Live Chat</a></div>
         </div>
       </div>
 
@@ -400,13 +406,13 @@ function toggleMobileMenu(){
 }
 
 function markNotificationRead(id,el){
-  fetch('api/mark_notification_read.php?id='+id).then(r=>r.json()).then(d=>{
+  fetch(window.APP_URL+'/api/mark_notification_read.php?id='+id).then(r=>r.json()).then(d=>{
     if(d.success){el.classList.remove('unread');updateNotifBadge(-1);}
   });
 }
 function markAllNotificationsRead(){
-  fetch('api/mark_all_read.php').then(r=>r.json()).then(d=>{
-    if(d.success){document.querySelectorAll('.nh-notif-item.unread').forEach(e=>e.classList.remove('unread'));var b=document.getElementById('notifBadge');if(b)b.remove();}
+  fetch(window.APP_URL+'/api/mark_all_read.php').then(r=>r.json()).then(d=>{
+    if(d.success){document.querySelectorAll('.nh-notif-item.unread').forEach(e=>e.classList.remove('unread'));var b=document.getElementById('notifBadge');if(b)b.remove();var btn=document.querySelector('.nh-mark-read-btn');if(btn){btn.classList.add('done');btn.innerHTML='<i class="fas fa-check"></i>All read';}}
   });
 }
 function updateNotifBadge(c){
@@ -426,7 +432,7 @@ function showToast(type,title,msg,dur){
 }
 
 setInterval(function(){
-  fetch('api/get_notification_count.php').then(r=>r.json()).then(d=>{
+  fetch(window.APP_URL+'/api/get_notification_count.php').then(r=>r.json()).then(d=>{
     if(d.count!==undefined){var b=document.getElementById('notifBadge');if(d.count>0){if(b)b.textContent=d.count;else location.reload();}else if(b)b.remove();}
   });
 },30000);
@@ -497,7 +503,7 @@ setTimeout(lcPoll,500);setInterval(lcPoll,10000);
 <script src="<?php echo BASE_URL; ?>/ai/assets/js/chat.js"></script>
 <?php ai_chat_widget(); ?>
 <script>
-if('serviceWorker' in navigator){navigator.serviceWorker.register('/Job-portal-and-grooming/public/sw.js').then(function(r){console.log('SW registered:',r.scope);}).catch(function(e){console.log('SW failed:',e);});}
+if('serviceWorker' in navigator){navigator.serviceWorker.register('<?php echo BASE_URL; ?>/public/sw.js').then(function(r){console.log('SW registered:',r.scope);}).catch(function(e){console.log('SW failed:',e);});}
 </script>
 </body>
 </html>

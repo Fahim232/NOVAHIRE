@@ -375,7 +375,7 @@ Your employer account has been created. You can now post jobs, review applicatio
 <li>Post your first job listing</li>
 <li>Review incoming applications</li>
 </ul></div>
-' . email_btn(BASE_URL . '/company/company_dashboard.php', 'Go to Dashboard')) . email_footer();
+' . email_btn(BASE_URL . '/company/index.php', 'Go to Dashboard')) . email_footer();
     return send_email($to, $subject, $body, '', 'company_welcome');
 }
 
