@@ -2,23 +2,23 @@
     "name": "NovaHire - Job Portal & Career Growth",
     "short_name": "NovaHire",
     "description": "AI-powered job portal connecting job seekers with top companies. Browse jobs, take assessments, and grow your career.",
-    "start_url": "/Job-portal-and-grooming/",
+    "start_url": "/NovaHire/",
     "display": "standalone",
-    "background_color": "#6d5efc",
-    "theme_color": "#6d5efc",
+    "background_color": "#0c1222",
+    "theme_color": "#1a56db",
     "orientation": "portrait-primary",
-    "scope": "/Job-portal-and-grooming/",
+    "scope": "/NovaHire/",
     "lang": "en",
     "categories": ["business", "education", "jobs"],
     "icons": [
         {
-            "src": "/Job-portal-and-grooming/images/icon-192.png",
+            "src": "/NovaHire/images/icon-192.png",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any maskable"
         },
         {
-            "src": "/Job-portal-and-grooming/images/icon-512.png",
+            "src": "/NovaHire/images/icon-512.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any maskable"
@@ -26,7 +26,7 @@
     ],
     "screenshots": [
         {
-            "src": "/Job-portal-and-grooming/images/screenshot-mobile.png",
+            "src": "/NovaHire/images/screenshot-mobile.png",
             "sizes": "1080x1920",
             "type": "image/png",
             "form_factor": "narrow"
@@ -36,20 +36,20 @@
         {
             "name": "Browse Jobs",
             "short_name": "Jobs",
-            "url": "/Job-portal-and-grooming/seeker/browse_jobs.php",
-            "icons": [{"src": "/Job-portal-and-grooming/images/icon-96.png", "sizes": "96x96"}]
+            "url": "/NovaHire/seeker/browse_jobs.php",
+            "icons": [{"src": "/NovaHire/images/icon-96.png", "sizes": "96x96"}]
         },
         {
             "name": "My Applications",
             "short_name": "Apps",
-            "url": "/Job-portal-and-grooming/seeker/my_application.php",
-            "icons": [{"src": "/Job-portal-and-grooming/images/icon-96.png", "sizes": "96x96"}]
+            "url": "/NovaHire/seeker/my_application.php",
+            "icons": [{"src": "/NovaHire/images/icon-96.png", "sizes": "96x96"}]
         },
         {
             "name": "AI Assistant",
             "short_name": "AI",
-            "url": "/Job-portal-and-grooming/seeker/ai_hub.php",
-            "icons": [{"src": "/Job-portal-and-grooming/images/icon-96.png", "sizes": "96x96"}]
+            "url": "/NovaHire/seeker/ai_hub.php",
+            "icons": [{"src": "/NovaHire/images/icon-96.png", "sizes": "96x96"}]
         }
     ]
 }

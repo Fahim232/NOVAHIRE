@@ -1,10 +1,10 @@
-const CACHE_NAME = 'novahire-v1';
+const CACHE_NAME = 'novahire-v2';
 const STATIC_ASSETS = [
-    '/Job-portal-and-grooming/',
-    '/Job-portal-and-grooming/css/style.css',
-    '/Job-portal-and-grooming/images/icon-192.png',
-    '/Job-portal-and-grooming/images/icon-512.png',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+    '/NovaHire/',
+    '/NovaHire/assets/css/style.css',
+    '/NovaHire/images/icon-192.png',
+    '/NovaHire/images/icon-512.png',
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
 ];
 
 self.addEventListener('install', e => {
@@ -45,9 +45,9 @@ self.addEventListener('push', e => {
     const data = e.data ? e.data.json() : { title: 'NovaHire', body: 'You have a new notification' };
     e.waitUntil(self.registration.showNotification(data.title, {
         body: data.body,
-        icon: '/Job-portal-and-grooming/images/icon-192.png',
-        badge: '/Job-portal-and-grooming/images/icon-96.png',
-        data: data.url || '/Job-portal-and-grooming/'
+        icon: '/NovaHire/images/icon-192.png',
+        badge: '/NovaHire/images/icon-96.png',
+        data: data.url || '/NovaHire/'
     }));
 });
 
