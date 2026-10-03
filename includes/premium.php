@@ -40,6 +40,10 @@ function nh_check_access($con, $user_id, $feature) {
         'company_job_quiz'           => 10,
         'company_job_application'    => 20,
         'grooming'                   => 10,
+        // Phase 2 hard gates (0 = Pro only)
+        'career_analytics'           => 0,
+        'application_pipeline'       => 0,
+        'job_match_notifs'           => 0,
     ];
     
     $limit = $daily_limits[$feature] ?? 5;
