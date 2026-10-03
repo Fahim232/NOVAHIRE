@@ -140,10 +140,7 @@ function set_security_headers() {
         header('Referrer-Policy: strict-origin-when-cross-origin');
         header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
         header('X-Permitted-Cross-Domain-Policies: none');
-        header('Cross-Origin-Embedder-Policy: require-corp');
-        header('Cross-Origin-Opener-Policy: same-origin');
-        header('Cross-Origin-Resource-Policy: same-origin');
-        header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: http: https:; frame-src https://meet.jit.si; connect-src 'self';");
+        header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: http: https:; frame-src 'self' https://meet.jit.si; connect-src 'self';");
         header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()');
     }
 }
