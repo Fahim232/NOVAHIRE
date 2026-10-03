@@ -1,7 +1,6 @@
 <?php
 // Core setup: session, DB, BASE_URL, helpers
 require_once __DIR__ . '/../includes/bootstrap.php';
-    require_once __DIR__ . '/../admin/dbcon.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -33,7 +32,7 @@ require_once __DIR__ . '/../includes/bootstrap.php';
 
         .reg-visual {
             width: 40%;
-            background: linear-gradient(135deg, #0984e3 0%, #00cec9 100%);
+            background: linear-gradient(135deg, #1a56db 0%, #0ea5e9 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -64,7 +63,7 @@ require_once __DIR__ . '/../includes/bootstrap.php';
             margin-top: 30px; transition: all 0.3s; position: relative; z-index: 2;
         }
         .reg-btn-outline:hover {
-            background: white; color: #0984e3; transform: translateY(-3px);
+            background: white; color: #1a56db; transform: translateY(-3px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
 
@@ -82,29 +81,29 @@ require_once __DIR__ . '/../includes/bootstrap.php';
             border-radius: 15px; font-size: 0.95rem; color: #2d3436; font-weight: 500;
             transition: all 0.3s; background: #fdfdfd; height: auto;
         }
-        .form-control-modern:focus { border-color: #00cec9; background: white; outline: none; box-shadow: 0 5px 20px rgba(0, 206, 201, 0.1); }
+        .form-control-modern:focus { border-color: #0ea5e9; background: white; outline: none; box-shadow: 0 5px 20px rgba(14, 165, 233, 0.1); }
 
         .btn-modern {
-            background: linear-gradient(to right, #0984e3, #00cec9); color: white; border: none;
+            background: linear-gradient(to right, #1a56db, #0ea5e9); color: white; border: none;
             padding: 15px; border-radius: 15px; font-weight: 700; letter-spacing: 1px;
             text-transform: uppercase; font-size: 0.9rem; transition: transform 0.3s;
             width: 100%; cursor: pointer; margin-top: 10px;
         }
-        .btn-modern:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(9, 132, 227, 0.3); color: white; }
+        .btn-modern:hover { transform: translateY(-3px);             box-shadow: 0 10px 20px rgba(26, 86, 219, 0.3); color: white; }
 
         /* Skill Selector */
         .skills-section { margin-bottom: 20px; }
         .skills-label { font-size: 0.85rem; font-weight: 700; color: #636e72; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-        .skills-label i { color: #00cec9; }
+        .skills-label i { color: #0ea5e9; }
         .selected-skills-display {
             display: flex; flex-wrap: wrap; gap: 6px; min-height: 38px; padding: 10px 14px;
             border: 2px solid #f1f2f6; border-radius: 12px; background: #f8f9fa;
             margin-bottom: 10px; transition: all 0.3s;
         }
-        .selected-skills-display:focus-within { border-color: #00cec9; box-shadow: 0 5px 20px rgba(0, 206, 201, 0.1); }
+        .selected-skills-display:focus-within { border-color: #0ea5e9; box-shadow: 0 5px 20px rgba(14, 165, 233, 0.1); }
         .selected-skill-tag {
             display: inline-flex; align-items: center; gap: 5px;
-            background: linear-gradient(135deg, #0984e3, #00cec9); color: white;
+            background: linear-gradient(135deg, #1a56db, #0ea5e9); color: white;
             padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
             animation: tagPop 0.2s ease;
         }
@@ -131,17 +130,17 @@ require_once __DIR__ . '/../includes/bootstrap.php';
             border: 2px solid #e2e8f0; background: white; color: #475569;
             cursor: pointer; transition: all 0.2s; user-select: none;
         }
-        .skill-option:hover { border-color: #0984e3; color: #0984e3; background: #eff6ff; }
-        .skill-option.selected { background: linear-gradient(135deg, #0984e3, #00cec9); color: white; border-color: transparent; }
+        .skill-option:hover { border-color: #1a56db; color: #1a56db; background: #eff6ff; }
+        .skill-option.selected { background: linear-gradient(135deg, #1a56db, #0ea5e9); color: white; border-color: transparent; }
         .skill-option input { display: none; }
 
         .skills-toggle-btn {
             display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
-            border: 2px dashed #00cec9; border-radius: 10px; background: transparent;
-            color: #00cec9; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+            border: 2px dashed #0ea5e9; border-radius: 10px; background: transparent;
+            color: #0ea5e9; font-weight: 700; font-size: 0.85rem; cursor: pointer;
             transition: all 0.2s; width: 100%; justify-content: center;
         }
-        .skills-toggle-btn:hover { background: #f0fdfa; border-style: solid; }
+        .skills-toggle-btn:hover { background: #eff6ff; border-style: solid; }
         .skills-toggle-btn i.toggle-icon { transition: transform 0.3s; }
         .skills-toggle-btn.open i.toggle-icon { transform: rotate(180deg); }
 
@@ -169,8 +168,8 @@ require_once __DIR__ . '/../includes/bootstrap.php';
             width: 100px;
             height: 100px;
             border-radius: 50%;
-            border: 3px dashed #00cec9;
-            background: #f0fdfa;
+            border: 3px dashed #0ea5e9;
+            background: #f0f9ff;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -179,13 +178,13 @@ require_once __DIR__ . '/../includes/bootstrap.php';
             overflow: hidden;
         }
         .reg-photo-preview:hover {
-            border-color: #0984e3;
+            border-color: #1a56db;
             background: #eff6ff;
             transform: scale(1.05);
         }
         .reg-photo-preview i {
             font-size: 1.5rem;
-            color: #00cec9;
+            color: #0ea5e9;
             margin-bottom: 2px;
         }
         .reg-photo-preview span {
@@ -236,7 +235,6 @@ require_once __DIR__ . '/../includes/bootstrap.php';
 
             // Hash password securely using default BCrypt algorithm
             $passEncrypt  = password_hash($password, PASSWORD_BCRYPT);
-            $cpassEncrypt = password_hash($cpassword, PASSWORD_BCRYPT);
 
             // Handle candidate profile photo upload through the hardened helper
             // (content-verified, random filename, stored in the canonical images/ folder)
@@ -264,7 +262,7 @@ require_once __DIR__ . '/../includes/bootstrap.php';
                 // 2. Validate password match and insert user record
                 if ($password === $cpassword) {
                     $ins_stmt = mysqli_prepare($con, "INSERT INTO user_info (username, email, phone, password, cpassword, user_degree, user_skills, profile) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                    mysqli_stmt_bind_param($ins_stmt, "ssssssss", $username, $email, $phone, $passEncrypt, $cpassEncrypt, $degree, $skills, $profile_name);
+                    mysqli_stmt_bind_param($ins_stmt, "ssssssss", $username, $email, $phone, $passEncrypt, $passEncrypt, $degree, $skills, $profile_name);
                     $iquery = mysqli_stmt_execute($ins_stmt);
                     mysqli_stmt_close($ins_stmt);
 

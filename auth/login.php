@@ -1,6 +1,8 @@
 <?php
 // Core setup: session, DB, BASE_URL, helpers
 require_once __DIR__ . '/../includes/bootstrap.php';
+// Google OAuth (button only shown if GOOGLE_CLIENT_ID is configured below)
+require_once __DIR__ . '/../includes/google_auth.php';
 /**
  * User & Role Authentication Portal (Login)
  * 
@@ -364,6 +366,14 @@ if (isset($_POST['submit'])) {
         .lg-btn.loading .label { visibility: hidden; position: relative; }
         .lg-btn.loading .label::after { content: 'Signing in…'; visibility: visible; position: absolute; left: 50%; transform: translateX(-50%); }
 
+        .lg-or { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: #94a3b8; font-size: .76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .lg-or::before,.lg-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        [data-theme="dark"] .lg-or { color: #64748b; }
+
+        .lg-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px 16px; border-radius: 13px; border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text); font-weight: 700; font-size: .9rem; text-decoration: none; transition: all .25s; cursor: pointer; }
+        .lg-google:hover { border-color: #1a56db; background: rgba(26,86,219,.05); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(26,86,219,.12); }
+        .lg-google svg { flex-shrink: 0; }
+
         .lg-alt { text-align: center; margin-top: 22px; font-size: .85rem; color: #64748b; font-weight: 500; }
         [data-theme="dark"] .lg-alt { color: #94a3b8; }
         .lg-alt a { color: #1a56db; font-weight: 800; text-decoration: none; }
@@ -469,7 +479,7 @@ if (isset($_POST['submit'])) {
 
                     <div class="lg-row">
                         <label class="lg-remember">
-                            <input type="checkbox" id="rememberMe"> Remember me
+                            <input type="checkbox" name="remember" id="rememberMe"> Remember me
                         </label>
                         <a href="forgot_password.php?type=user" class="lg-forgot"><i class="fas fa-key mr-1"></i>Forgot Password?</a>
                     </div>
@@ -478,6 +488,21 @@ if (isset($_POST['submit'])) {
                         <span class="spin"><i class="fas fa-spinner fa-spin"></i></span>
                         <span class="label"><i class="fas fa-sign-in-alt mr-2"></i>Sign In</span>
                     </button>
+
+                    <?php
+                    $gc = defined('GOOGLE_CLIENT_ID') && GOOGLE_CLIENT_ID !== '' ? get_google_config() : null;
+                    if ($gc): ?>
+                    <div class="lg-or">or</div>
+                    <a href="<?php echo htmlspecialchars(get_google_auth_url()); ?>" class="lg-google" id="googleBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        Continue with Google
+                    </a>
+                    <?php endif; ?>
 
                     <div class="lg-alt" id="registerLink">
                         Don't have an account? <a href="registration.php">Create Account</a>

@@ -43,7 +43,7 @@ if (isset($_POST['register']) && !isset($error)) {
         $hashed_password = password_hash($password, PASSWORD_BCRYPT);
         $logo_name = null;
         if (isset($_FILES['logo']) && $_FILES['logo']['error'] !== UPLOAD_ERR_NO_FILE) {
-            $up = nh_store_upload($_FILES['logo'], __DIR__ . '/uploads/company_logos', 'image', 'logo');
+            $up = nh_store_upload($_FILES['logo'], dirname(__DIR__) . '/uploads/company_logos', 'image', 'logo');
             if ($up['ok']) {
                 $logo_name = $up['filename'];
             } else {
@@ -58,7 +58,7 @@ if (isset($_POST['register']) && !isset($error)) {
             if (mysqli_stmt_execute($ins_stmt)) {
                 $success_msg = 'Company registered successfully!';
                 // Send welcome email
-                require_once __DIR__ . '/includes/mail.php';
+                require_once __DIR__ . '/../includes/mail.php';
                 send_company_welcome_email($email, $company_name);
             } else {
                 $error_msg = 'Registration failed! Please try again.';
@@ -73,7 +73,7 @@ if (isset($_POST['register']) && !isset($error)) {
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register Company | NovaHire</title>
-    <?php include 'includes/links.php'; ?>
+    <?php include '../includes/links.php'; ?>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
     :root{--cr-primary:#3b82f6;--cr-secondary:#06b6d4;--cr-accent:#0ea5e9;--cr-grad:linear-gradient(135deg,#3b82f6,#06b6d4 50%,#0ea5e9);--cr-text:#1e293b;--cr-muted:#64748b;--cr-border:#e2e8f0;--cr-bg:#f8fafc;--cr-card:#fff;--cr-success:#059669;--cr-danger:#dc2626;--cr-radius:16px;}
@@ -285,7 +285,7 @@ if (isset($_POST['register']) && !isset($error)) {
                 <?php endif; ?>
                 <?php if (isset($success_msg)): ?>
                     <div class="cr-alert success"><i class="fas fa-check-circle"></i><?php echo $success_msg; ?> Redirecting... <i class="fas fa-spinner fa-spin ml-2"></i></div>
-                    <script>setTimeout(function(){window.location.href='auth/login.php';},2000);</script>
+                    <script>setTimeout(function(){window.location.href='login.php';},2000);</script>
                 <?php endif; ?>
 
                 <form method="POST" action="" enctype="multipart/form-data" id="crForm">
@@ -445,7 +445,7 @@ if (isset($_POST['register']) && !isset($error)) {
                 </form>
 
                 <div class="cr-login-link">
-                    Already have an account? <a href="auth/login.php">Sign in here</a>
+                    Already have an account? <a href="login.php">Sign in here</a>
                 </div>
             </div>
         </div>
