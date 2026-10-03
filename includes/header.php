@@ -6,7 +6,7 @@ require_once dirname(__DIR__) . '/ai/config.php';
 require_once dirname(__DIR__) . '/ai/helpers.php';
 
 $user_id = $_SESSION['id'];
-$unread_notifs = get_unread_count($con, 'user', $user_id);
+$unread_notifs = get_unread_count($con, 'user', $user_id, 'message');
 $unread_messages = get_unread_message_count($con, 'user', $user_id);
 $unread_total = $unread_notifs + $unread_messages;
 ?>
@@ -83,7 +83,7 @@ $unread_total = $unread_notifs + $unread_messages;
                     </div>
                     <div class="notif-dropdown-body" id="notifList">
                         <?php
-                        $notifications = get_notifications($con, 'user', $user_id, 6);
+                        $notifications = get_notifications($con, 'user', $user_id, 6, 0, 'message');
                         $type_icons = [
                             'application_status' => 'fa-clipboard-check',
                             'new_application' => 'fa-file-alt',
