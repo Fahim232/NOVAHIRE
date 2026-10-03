@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS interview_feedback (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    interview_id INT NOT NULL,
+    rating TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comments TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
