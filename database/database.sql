@@ -62,13 +62,18 @@ CREATE TABLE IF NOT EXISTS `user_info` (
   `gender` enum('Male','Female','Other') DEFAULT NULL,
   `experience` text DEFAULT NULL,
   `about_me` text DEFAULT NULL,
+  `experience_years` int(11) DEFAULT NULL,
+  `expected_salary` int(11) DEFAULT NULL,
   `password` varchar(255) NOT NULL,
   `cpassword` varchar(255) NOT NULL,
   `user_degree` varchar(255) NOT NULL,
   `user_skills` varchar(255) NOT NULL,
   `profile` varchar(255) DEFAULT NULL,
   `auto_cv_path` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  `google_id` varchar(255) DEFAULT NULL,
+  `email_verified` tinyint(1) DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `google_id` (`google_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================
